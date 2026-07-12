@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100svh;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-dark-muted border border-surface-dark-border rounded-2xl;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:border-surface-dark-border hover:shadow-card-hover;
+  }
+
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-600 active:bg-brand-700
+           text-white font-medium rounded-xl px-4 py-2.5 text-sm
+           transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-dark;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-white/5 active:bg-white/10
+           text-gray-400 hover:text-gray-200 font-medium rounded-xl px-4 py-2.5 text-sm
+           transition-all duration-150
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20;
+  }
+
+  .btn-danger {
+    @apply bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30
+           font-medium rounded-xl px-4 py-2.5 text-sm transition-all duration-150;
+  }
+
+  .stat-chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg,
+      #161b27 25%,
+      #21262e 50%,
+      #161b27 75%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+/* Safe area support for iOS */
+.safe-top    { padding-top: env(safe-area-inset-top, 0); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* Z-score spark bar */
+.z-bar {
+  height: 4px;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Notification pulse dot */
+.pulse-dot {
+  @apply animate-pulse-ring;
+}

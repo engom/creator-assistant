@@ -1,0 +1,246 @@
+# Omicron Creator Agent — Product Brief
+
+> An autonomous AI agent that watches every piece of content after publication,
+> benchmarks early performance against the creator's own history, and recommends
+> (or executes) the next action.
+
+---
+
+## Vision
+
+Instead of dashboards, creators receive:
+
+> 🎉 Your TikTok is tracking 40% above your last 10 posts.
+>
+> Hook retention is the driver. Recommended actions:
+> • Draft cross-post to Instagram Reels — awaiting your approval
+> • Schedule YouTube Shorts in 20 min — awaiting your approval
+> • Reply to these 3 comments first
+>
+> Shall I proceed?
+
+The differentiator is not "we monitor TikTok." Many tools do that.
+It is: **an AI agent that observes, reasons, and acts across your creator ecosystem —
+with a full audit trail on every decision.**
+
+---
+
+## How TikTok's algorithm actually works (2026)
+
+The real test window is 30–90 min, not 15 min.
+A new video is shown first to a creator's existing followers.
+Completion rate + shares among that group decide whether it expands to non-followers.
+
+Implication: the right benchmark is the creator's own rolling baseline,
+not a global TikTok average. This is a retrieval problem, not a prediction problem.
+Avoid "this will hit 1M views" — use comparative language only.
+
+---
+
+## Architecture
+
+The product is built on top of the Omicron Agent Kit's REST API.
+Each agent is a `BaseAgent` subclass registered in `build_registry()` and
+reachable at `/v1/agents/{name}/invoke`. The REST API handles auth, audit log,
+and timeout — agents contain only domain logic.
+
+```
+TikTok / Instagram / YouTube
+        │
+        ▼
+   Platform Adapters (OAuth 2.0, adaptive polling, WebSub for YouTube)
+        │
+        ▼
+   Event Queue (SQS / EventBridge)
+   — triggers agent invocations on new-post events
+        │
+        ▼
+   Omicron Agent Kit — REST API  /v1/agents/{name}/invoke
+   ├── monitoring-agent    detects new posts, schedules polling sequence
+   ├── analytics-agent     rolling z-score vs creator's own baseline
+   ├── insight-agent       DSPy ChainOfThought: stats delta → grounded language
+   ├── publisher-agent     DSPy ReAct: cross-post to IG / YT Shorts (human approval gate)
+   └── notification-agent  dispatches to Telegram / Slack / Email / WhatsApp
+        │
+        ▼
+   Metrics Store (DynamoDB time-series + Redis rolling baseline)
+        │
+        ▼
+   Audit Log (JSONL, SHA-256 hashed — EU AI Act Article 12)
+
+   ── Phase 2 ──
+   └── repost-detector     ReAct + fingerprint vendor adapter
+```
+
+Threads and Facebook are excluded from Phase 1–2: their APIs do not offer
+sufficient analytics access to support the baseline-comparison model.
+
+---
+
+## AI layer — where the kit earns its place
+
+Most of this system is a data pipeline. Threshold checks and z-scores
+are better served by statistics than LLM calls — cheaper, faster, no hallucinated numbers.
+
+DSPy earns its place in two specific spots:
+
+**1. InsightAgent — turning a stats delta into grounded language**
+
+```python
+class PostPerformanceInsight(dspy.Signature):
+    """Compare a post's early stats to the creator's own rolling baseline."""
+    current_stats: str       = dspy.InputField(desc="views/likes/comments/shares at T+45min")
+    historical_baseline: str = dspy.InputField(desc="creator's rolling avg, last 10 posts")
+    insight: str             = dspy.OutputField(desc="one sentence, comparative, no predictions")
+    urgency: str             = dspy.OutputField(desc="low | medium | high")
+    recommended_action: str  = dspy.OutputField(desc="e.g. 'reply to top comments now'")
+```
+
+**2. PublisherAgent (Phase 1) / RepostDetector (Phase 2) — ReAct with tool-calling**
+
+Same pattern as the existing `tool-react` agent: ReAct loop over platform adapter tools.
+PublisherAgent drafts and stages cross-posts; it never publishes without human approval.
+RepostDetector calls a fingerprint vendor API, judges urgency, drafts a takedown note.
+
+---
+
+## Agentic workflow
+
+```
+New post detected (webhook or initial poll)
+        ↓
+Adaptive poller: T+30, T+45, T+60, T+90 min
+(aligned with the real 30–90 min algorithm window)
+        ↓
+analytics-agent: compute z-score vs rolling baseline
+        ↓
+insight-agent (DSPy ChainOfThought) → insight + urgency + recommended_action
+        ↓
+urgency = low     → log only
+urgency = medium  → notification-agent (inform creator)
+urgency = high, positive → publisher-agent drafts cross-post, notifies for approval
+urgency = high, negative → notification-agent alerts creator to moderate comments
+        ↓
+Audit log entry (every invocation, every agent)
+```
+
+---
+
+## Platform API realities
+
+| Platform  | Analytics access | Publish | Key constraint |
+|-----------|-----------------|---------|----------------|
+| TikTok    | Polling only — no webhooks. Marketing API requires app audit. | Yes | High-frequency polling risks rate limits. Single point of failure if ToS changes. |
+| Instagram | Graph API, Business/Creator accounts only | Reels + media | Requires Facebook Page linkage. |
+| YouTube   | WebSub push on publish; Data API v3 for metrics | Yes | Most mature API. Use WebSub for publish events, not polling. |
+
+Auth pattern:
+- OAuth 2.0 per platform; refresh tokens stored in AWS Secrets Manager
+- Normalize to common schema: `views, likes, comments, shares, retention`
+- Adaptive polling: 60–90s intervals early, decay after 2h, stop after 24h
+
+---
+
+## Omicron Agent Kit mapping
+
+| Agent name            | DSPy pattern      | Role |
+|-----------------------|-------------------|------|
+| `monitoring-agent`    | —                 | Detects new posts, triggers polling sequence via EventBridge |
+| `analytics-agent`     | —                 | Maintains rolling baseline in Redis, computes z-score |
+| `insight-agent`       | `ChainOfThought`  | Stats delta → grounded language, urgency, recommended action |
+| `publisher-agent`     | `ReAct`           | Stages cross-posts via platform adapter tools; requires approval |
+| `notification-agent`  | —                 | Dispatches to Telegram / Slack / Email / WhatsApp |
+| `repost-detector`     | `ReAct`           | Fingerprint vendor call → urgency → takedown draft (Phase 2) |
+
+Each is a `BaseAgent` subclass registered in `build_registry()`.
+Each invocation is auth-checked, timed, and audit-logged by the REST API layer.
+Follows the same `BaseAgent → DSPy program` pattern as `rag` and `esg-extractor`.
+
+---
+
+## Competitive landscape
+
+| Tool              | Early alerts        | Cross-platform        | Own-history benchmark | Target         |
+|-------------------|---------------------|-----------------------|-----------------------|----------------|
+| TikTok Studio     | Dashboard only      | No                    | No                    | Creators       |
+| Virlo             | Yes (Slack/Discord) | TikTok/Reels/Shorts   | No                    | Agencies       |
+| vidIQ             | Views/hour threshold| YouTube-first         | No                    | YT creators    |
+| **Omicron Creator Agent** | Yes         | Phase 1 (3 platforms) | **Yes**               | Agencies/brands|
+
+Raw alerts are commoditized. The differentiator is own-history benchmarking
++ audit-grade reporting — the same audit-log story that differentiates the kit
+for enterprise ESG and EU AI Act clients.
+
+---
+
+## Business model
+
+Position as an **AI employee**, not an analytics subscription.
+Agency/MCN is the priority segment — higher ACV, closer to how Omicron already sells,
+and the audit-log differentiator resonates with brand legal/finance teams.
+
+| Tier    | Price     | Scope |
+|---------|-----------|-------|
+| Agency  | €299+/mo  | Multi-creator, audit log export, white-label, API access |
+| Pro     | €99/mo    | AI recommendations, auto cross-posting, competitor tracking |
+| Starter | €29/mo    | 1 creator, 3 platforms, monitoring + notifications |
+
+Direct-to-creator is a crowded, high-churn lane requiring consumer growth marketing
+that is not Omicron's core muscle. If you pursue it, give it a separate brand.
+
+---
+
+## Compliance & sovereignty
+
+- OAuth tokens and analytics data processed on AWS `eu-west-3` (Paris) — GDPR.
+- Agent is an advisor by default: drafts and stages actions, never executes without
+  authenticated creator approval. This is enforced at the API layer, not just convention.
+- Every recommendation cites its reasoning: "I suggest cross-posting because your
+  engagement rate at T+45 is 2.4× your 30-day average."
+- Full audit log on every agent invocation — same SHA-256 hashed JSONL pattern
+  as the ESG extractor, satisfying EU AI Act Article 12.
+
+---
+
+## Risks
+
+- **No TikTok webhooks** — polling is the only option. A ToS or rate-limit change
+  is a real single point of failure. Mitigate with a platform-agnostic adapter layer
+  so swapping or disabling a platform doesn't break the core loop.
+- **Overconfident output** — the InsightAgent Signature explicitly forbids predictions.
+  Enforce this at compile time with labeled examples that penalize forward-looking claims.
+- **Repost detection cost** — fingerprint vendor APIs charge per scan. Gate behind
+  Agency tier; build only once a customer will fund the per-scan cost.
+- **TikTok platform risk** — US ownership restructuring (Oracle/Silver Lake/MGX JV,
+  Jan 2026) is a reminder that API terms can shift under regulatory pressure.
+- **Polling cost at scale** — 60–90s polling across many creators accumulates Lambda
+  invocations quickly. Use SQS + EventBridge scheduling, not a cron loop, to keep
+  costs proportional to active posts, not total creator count.
+
+---
+
+## Build order
+
+**Phase 0 — validate before building**
+10–15 conversations with 2–3 agencies or brand marketing contacts.
+Validate: is "own-history benchmarking + audit-grade reporting" worth agency prices?
+
+**Phase 1 — core loop (TikTok only)**
+- TikTok OAuth + adaptive poller
+- `analytics-agent` (z-score vs rolling baseline)
+- `insight-agent` (DSPy ChainOfThought, compiled against labeled examples)
+- `notification-agent` (Telegram + email)
+- No cross-posting, no repost detection
+- Proves the loop end-to-end on the hardest platform first
+
+**Phase 2 — multi-platform + publishing**
+- Add Instagram Graph API + YouTube WebSub
+- `publisher-agent` (ReAct, human approval gate)
+- Multi-creator agency dashboard
+- Add `repost-detector` only once an agency customer funds the per-scan cost
+
+**Phase 3 — enterprise**
+- Audit log export (CSV/PDF for brand legal teams)
+- White-label dashboard
+- SLA + dedicated support
+- Agency pricing tier

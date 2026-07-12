@@ -1,0 +1,181 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Activity, RefreshCw, Server, Cpu } from 'lucide-react'
+import { useAppStore } from '@/store/app'
+import { Badge } from '@/components/ui/Badge'
+import { CheckpointChart, StatBar } from '@/components/charts/PerformanceChart'
+import { cn, timeAgo, formatNumber, formatPercent, urgencyBg, signalBg } from '@/lib/utils'
+import { DEMO_CREATORS } from '@/data/demo'
+
+// Simulated checkpoint timeline per creator
+const DEMO_CHECKPOINTS = {
+  creator_mia_chen: [
+    { offset_min: 30, views: 18000, likes: 1200, shares: 180, baseline_views: 12600 },
+    { offset_min: 45, views: 38000, likes: 2900, shares: 420, baseline_views: 18900 },
+    { offset_min: 60, views: 62000, likes: 4700, shares: 680, baseline_views: 28350 },
+    { offset_min: 90, views: 76000, likes: 5800, shares: 870, baseline_views: 37800 },
+  ],
+  creator_jake_vis: [
+    { offset_min: 30, views: 8200, likes: 540, shares: 38, baseline_views: 5400 },
+    { offset_min: 45, views: 14000, likes: 980, shares: 65, baseline_views: 8100 },
+    { offset_min: 60, views: 20000, likes: 1400, shares: 72, baseline_views: 10800 },
+    { offset_min: 90, views: 24500, likes: 1780, shares: 82, baseline_views: 14400 },
+  ],
+  creator_sara_world: [],
+}
+
+export function ActivityPage() {
+  const notifications = useAppStore((s) => s.notifications)
+  const [activeId, setActiveId] = useState(DEMO_CREATORS[0].id)
+  const creator = DEMO_CREATORS.find((c) => c.id === activeId)!
+  const checkpoints = DEMO_CHECKPOINTS[activeId as keyof typeof DEMO_CHECKPOINTS] ?? []
+  const latestStats = checkpoints[checkpoints.length - 1] ?? null
+  const creatorNotifs = notifications.filter((n) => n.creator_id === activeId)
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-gray-100">Activity</h1>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-lg">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            Live monitoring
+          </span>
+        </div>
+      </div>
+
+      {/* Creator tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {DEMO_CREATORS.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setActiveId(c.id)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium whitespace-nowrap transition-all',
+              activeId === c.id
+                ? 'bg-brand-500/20 border-brand-500/40 text-brand-300'
+                : 'bg-white/3 border-white/8 text-gray-400 hover:border-white/15 hover:text-gray-200',
+            )}
+          >
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center text-[9px] font-bold text-white">
+              {c.handle.slice(1, 3).toUpperCase()}
+            </div>
+            {c.handle}
+          </button>
+        ))}
+      </div>
+
+      {/* Creator overview */}
+      <div className="card p-5">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-100">{creator.handle}</h2>
+            <p className="text-sm text-gray-500">{formatNumber(creator.followers)} followers · TikTok</p>
+          </div>
+          <Badge variant={creator.authorized ? 'success' : 'warning'}>
+            {creator.authorized ? 'Authorized' : 'Needs auth'}
+          </Badge>
+        </div>
+
+        {/* Baseline stats */}
+        <div className="mb-1">
+          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">
+            Baseline (last {creator.baseline.sample_size} posts)
+          </p>
+          <div className="flex flex-col gap-2">
+            {[
+              { label: 'Views', current: latestStats?.views ?? 0, baseline: creator.baseline.avg_views, max: creator.baseline.avg_views * 3 },
+              { label: 'Likes', current: latestStats?.likes ?? 0, baseline: creator.baseline.avg_likes, max: creator.baseline.avg_likes * 3 },
+              { label: 'Shares', current: latestStats?.shares ?? 0, baseline: creator.baseline.avg_shares, max: creator.baseline.avg_shares * 3 },
+            ].map((s) => (
+              <StatBar key={s.label} {...s} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Checkpoint chart */}
+      {checkpoints.length > 0 ? (
+        <div className="card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={14} className="text-brand-400" />
+            <p className="text-sm font-semibold text-gray-300">View velocity over time</p>
+            <span className="ml-auto text-xs text-gray-600">Latest active post</span>
+          </div>
+          <CheckpointChart data={checkpoints} />
+          <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 bg-brand-500 rounded" /> Current
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 bg-white/20 rounded" style={{ borderTop: '1px dashed' }} /> Baseline
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="card p-8 text-center">
+          <RefreshCw size={24} className="text-gray-600 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No active monitoring for this creator.</p>
+          {!creator.authorized && (
+            <a
+              href={`/api/auth/tiktok/authorize?creator_id=${creator.id}`}
+              className="mt-3 inline-block text-xs text-brand-400 hover:text-brand-300"
+            >
+              Authorize TikTok →
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Recent alerts for creator */}
+      {creatorNotifs.length > 0 && (
+        <div className="card p-5">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Recent alerts
+          </p>
+          <div className="flex flex-col gap-2">
+            {creatorNotifs.slice(0, 5).map((n) => (
+              <motion.div
+                key={n.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-start gap-3 p-3 bg-white/3 rounded-xl border border-white/5"
+              >
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={cn('badge border text-xs', urgencyBg(n.urgency))}>{n.urgency}</span>
+                    <span className={cn('badge border text-xs', signalBg(n.signal))}>{n.signal.replace(/_/g, ' ')}</span>
+                    <span className="ml-auto text-xs text-gray-600">{timeAgo(n.received_at)}</span>
+                  </div>
+                  <p className="text-xs text-gray-300 leading-relaxed">{n.insight}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Agent status */}
+      <div className="card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Server size={14} className="text-gray-500" />
+          <p className="text-sm font-semibold text-gray-500">Agent status</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { name: 'monitoring-agent', status: 'active' },
+            { name: 'analytics-agent', status: 'active' },
+            { name: 'insight-agent', status: 'active' },
+            { name: 'notification-agent', status: 'active' },
+          ].map((a) => (
+            <div key={a.name} className="flex items-center gap-2 p-2.5 bg-white/3 rounded-xl border border-white/5">
+              <Cpu size={12} className="text-brand-400 shrink-0" />
+              <span className="text-xs text-gray-400 font-mono truncate">{a.name}</span>
+              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

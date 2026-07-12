@@ -1,0 +1,68 @@
+[project]
+name = "omicron-agent-kit"
+version = "0.1.0"
+description = "Omicron AI Labs — production-grade DSPy agent starter kit. API-first core, with MCP exposed as a thin optional adapter."
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "dspy[optuna]>=3.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "python-dotenv>=1.0",
+    "loguru>=0.7",
+    "asyncpg>=0.30",
+    "psycopg[binary]>=3.2",
+    "dbos>=1.0",
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage = "https://omicronailabs.com"
+Repository = "https://github.com/omicronailabs/omicron-agent-kit"
+Documentation = "https://github.com/omicronailabs/omicron-agent-kit#readme"
+
+[project.scripts]
+omicron-serve = "omicron_agent_kit.api.main:run"
+
+[project.optional-dependencies]
+# MCP is an adapter, not a dependency of the core product. Install only
+# when a partner needs their agents exposed as MCP tools.
+mcp = ["mcp>=1.0", "httpx>=0.27"]
+bedrock = ["boto3>=1.34"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.4",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+# --- Ruff (replaces black + isort + flake8 in one tool) -------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = ["E501"]  # line length enforced by formatter, not linter
+
+[tool.ruff.format]
+# black-compatible formatter
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["app"]

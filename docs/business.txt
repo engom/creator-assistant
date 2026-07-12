@@ -1,0 +1,41 @@
+Omicron Creator Agent is a B2B AI operations platform for creator teams. It continuously monitors newly published content,
+compares early performance against each creator’s own history, and turns that signal into explainable recommendations or 
+approval-based actions. The product is positioned as an AI employee for agency and brand-led creator operations, 
+not as a generic analytics dashboard.
+
+Core value proposition
+- Faster response to early content performance
+- Better decisions based on each creator’s own baseline
+- Less manual monitoring and triage
+- Audit-grade reasoning and action history for teams and legal stakeholders
+
+Target customer
+- Agencies
+- MCNs
+- Brand-led creator operations teams
+
+Revenue model
+- Subscription-based
+- Starter: €29/month
+- Pro: €99/month
+- Agency: €299+/month
+- Additional revenue from API access, white-labeling, and enterprise reporting
+
+Why this can work
+- The insight is differentiated and difficult to copy: own-history benchmarking plus explainable automation.
+- The customer pain is real: teams need to react quickly, but current tools mostly report instead of act.
+- The compliance and audit layer makes the product more credible for brands and agencies.
+
+Main risks
+- Platform API dependency
+- Polling cost and reliability
+- Need to avoid overconfident or low-quality recommendations
+- Adoption depends on proving real operational value quickly
+
+Best positioning
+“An AI operations agent that helps creator teams react faster, act smarter, and document every decision.”
+
+Short pitch
+Omicron Creator Agent helps agencies and creator teams monitor new posts, compare results to each creator’s own history, 
+and recommend or stage the next action with explainable, auditable reasoning. It replaces manual monitoring 
+with an always-on AI operator focused on early performance signals.

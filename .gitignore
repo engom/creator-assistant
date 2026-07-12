@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+audit.log
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+compiled_*.json
+.claude/
+CLAUDE.md
