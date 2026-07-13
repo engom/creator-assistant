@@ -33,7 +33,7 @@ from omicron_agent_kit.platform.tiktok import TikTokStatsClient
 
 _CHECKPOINT_OFFSETS_MIN = [30, 60, 90]
 
-_MIN_SAMPLE_SIZE = 8
+_MIN_SAMPLE_SIZE = 3
 
 _THRESHOLDS = {
     30: 1.5,

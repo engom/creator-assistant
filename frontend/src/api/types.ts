@@ -118,6 +118,40 @@ export interface Notification {
   received_at: string // ISO
   read: boolean
   approved?: boolean
+  post_title?: string
+}
+
+// GET /auth/tiktok/profile/{creator_id}
+export interface TikTokProfile {
+  creator_id: string
+  platform: string
+  display_name: string
+  avatar_url: string
+  follower_count: number
+  following_count: number
+  likes_count: number
+  video_count: number
+  open_id?: string
+}
+
+// GET /auth/tiktok/videos/{creator_id}
+export interface TikTokVideo {
+  id: string
+  create_time: number
+  view_count: number
+  like_count: number
+  comment_count: number
+  share_count: number
+  video_description: string
+  duration: number
+  cover_image_url: string
+  retention_pct: number
+}
+
+export interface TikTokVideosResponse {
+  creator_id: string
+  platform: string
+  videos: TikTokVideo[]
 }
 
 // Frontend-only: creator profile for demo

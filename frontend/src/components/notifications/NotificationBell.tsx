@@ -24,7 +24,7 @@ export function NotificationBell() {
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          'relative p-2 rounded-xl transition-all duration-150',
+          'relative grid h-11 w-11 place-items-center rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-95',
           open ? 'bg-white/10 text-gray-100' : 'text-gray-400 hover:bg-white/8 hover:text-gray-200',
         )}
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}
@@ -44,8 +44,7 @@ export function NotificationBell() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -8 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 top-12 w-[420px] max-h-[600px] overflow-y-auto z-50
-                       bg-surface-dark rounded-2xl border border-surface-dark-border shadow-notification"
+            className="absolute right-0 top-12 z-50 max-h-[min(600px,calc(100svh-6rem))] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-surface-dark-border bg-surface-dark shadow-notification"
           >
             {/* Header */}
             <div className="sticky top-0 bg-surface-dark/95 backdrop-blur-sm px-4 py-3 border-b border-surface-dark-border flex items-center justify-between z-10">
@@ -58,7 +57,7 @@ export function NotificationBell() {
               {unread > 0 && (
                 <button
                   onClick={() => store.markAllRead()}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors"
+                  className="-mr-2 min-h-11 rounded-xl px-3 text-xs font-medium text-brand-400 transition-colors hover:bg-brand-500/10 hover:text-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
                 >
                   Mark all read
                 </button>

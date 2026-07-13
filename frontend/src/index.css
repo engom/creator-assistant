@@ -14,11 +14,14 @@
 
   body {
     margin: 0;
-    background: #0d1117;
+    background: #07090e;
     color: #e6edf3;
     min-height: 100svh;
     overflow-x: hidden;
+    overscroll-behavior-y: none;
   }
+
+  button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
 
   #root {
     min-height: 100svh;
@@ -28,8 +31,8 @@
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+  ::-webkit-scrollbar-thumb { background: #252e42; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4560; }
 }
 
 @layer components {
@@ -38,7 +41,7 @@
   }
 
   .card-hover {
-    @apply transition-all duration-200 hover:border-surface-dark-border hover:shadow-card-hover;
+    @apply transition-all duration-200 hover:bg-surface-dark-hover hover:border-surface-dark-rim;
   }
 
   .btn-primary {
@@ -70,13 +73,55 @@
 
   .shimmer-bg {
     background: linear-gradient(90deg,
-      #161b27 25%,
-      #21262e 50%,
-      #161b27 75%
+      #0f1420 25%,
+      #1c2334 50%,
+      #0f1420 75%
     );
     background-size: 200% 100%;
     @apply animate-shimmer;
   }
+
+  /* DM Mono for all numeric/metric values */
+  .metric {
+    font-family: 'DM Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* Left accent bar for notification cards */
+  .accent-bar {
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    flex-shrink: 0;
+    align-self: stretch;
+  }
+
+  /* Teal live indicator dot */
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00d4aa;
+    animation: livePulse 2s ease-in-out infinite;
+  }
+
+  /* Bottom nav item base style */
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    padding: 8px 4px;
+    border-radius: 12px;
+    transition: all 0.15s;
+  }
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
 }
 
 /* Safe area support for iOS */

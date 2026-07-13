@@ -80,17 +80,20 @@ class AnalyticsAgent(BaseAgent):
         if not baseline:
             raise ValueError("historical_baseline is required")
 
+        sample_size = int(baseline.get("sample_size", 0))
+
         z_scores: dict[str, float | None] = {}
-        for stat, avg_key, std_key in _STAT_PAIRS:
-            val = current.get(stat)
-            avg = baseline.get(avg_key)
-            std = baseline.get(std_key)
-            if val is not None and avg is not None and std is not None:
-                z_scores[stat] = _z_score(float(val), float(avg), float(std))
+        if sample_size >= 3:
+            for stat, avg_key, std_key in _STAT_PAIRS:
+                val = current.get(stat)
+                avg = baseline.get(avg_key)
+                std = baseline.get(std_key)
+                if val is not None and avg is not None and std is not None:
+                    z_scores[stat] = _z_score(float(val), float(avg), float(std))
 
         # Primary signal: views z-score drives the urgency decision in the next stage.
         views_z = z_scores.get("views")
-        if views_z is None:
+        if sample_size < 3 or views_z is None:
             signal = "insufficient_data"
         elif views_z >= 1.5:
             signal = "above_baseline"

@@ -32,6 +32,20 @@ class Settings(BaseSettings):
         alias="TIKTOK_REDIRECT_URI",
     )
 
+    # --- CORS origins -------------------------------------------------------
+    # Comma-separated list of allowed origins. Defaults to localhost dev ports.
+    # Add tunnel URLs here (e.g. https://xyz.trycloudflare.com) without restarting
+    # the backend — just update CORS_ORIGINS in .env and restart.
+    cors_origins_raw: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        alias="CORS_ORIGINS",
+    )
+
+    @computed_field
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]
+
     # --- API auth -------------------------------------------------------
     # Comma-separated API keys, one per tenant, for local dev / early
     # pilots. Swap for a real identity provider before GA.

@@ -5,7 +5,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { HealthBadge } from './HealthBadge'
 
 const NAV = [
-  { to: '/',         icon: LayoutDashboard, label: 'Feed' },
+  { to: '/',         icon: LayoutDashboard, label: 'Pulse' },
   { to: '/analyze',  icon: Play,            label: 'Analyze' },
   { to: '/activity', icon: Activity,        label: 'Activity' },
   { to: '/settings', icon: Settings,        label: 'Settings' },
@@ -13,20 +13,26 @@ const NAV = [
 
 export function AppShell() {
   return (
-    <div className="min-h-svh flex flex-col bg-surface-dark">
+    <div className="min-h-svh flex flex-col" style={{ background: '#07090e' }}>
       {/* Top bar */}
-      <header className="sticky top-0 z-40 bg-surface-dark/90 backdrop-blur-md border-b border-surface-dark-border safe-top">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-3">
+      <header
+        className="sticky top-0 z-40 backdrop-blur-xl border-b border-surface-dark-border safe-top"
+        style={{ background: 'rgba(7,9,14,0.92)' }}
+      >
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
           {/* Logo */}
-          <div className="flex items-center gap-2 mr-2">
-            <div className="w-7 h-7 bg-brand-500 rounded-lg flex items-center justify-center">
-              <Zap size={14} className="text-white" />
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div
+              className="w-7 h-7 rounded-xl flex items-center justify-center shadow-brand-glow"
+              style={{ background: '#7c6fff' }}
+            >
+              <Zap size={13} className="text-white" />
             </div>
             <span className="font-semibold text-gray-100 text-sm tracking-tight">Omicron</span>
           </div>
 
-          {/* Nav */}
-          <nav className="flex items-center gap-0.5 flex-1">
+          {/* Desktop nav — hidden on mobile */}
+          <nav className="hidden sm:flex items-center gap-0.5 flex-1 ml-4">
             {NAV.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
@@ -35,28 +41,80 @@ export function AppShell() {
                 className={({ isActive }) => cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-white/10 text-gray-100'
+                    ? 'bg-brand-500/12 text-brand-300'
                     : 'text-gray-500 hover:text-gray-300 hover:bg-white/5',
                 )}
               >
                 <Icon size={15} />
-                <span className="hidden sm:inline">{label}</span>
+                {label}
               </NavLink>
             ))}
           </nav>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <HealthBadge />
             <NotificationBell />
           </div>
         </div>
       </header>
 
-      {/* Page content */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 safe-bottom">
+      {/* Main content — extra bottom padding on mobile to clear bottom nav */}
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 pb-32 sm:pb-6 safe-bottom">
         <Outlet />
       </main>
+
+      {/* Scrim above bottom nav — mobile only */}
+      <div
+        className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, #07090e 0%, rgba(7,9,14,0.7) 40%, transparent 100%)' }}
+      />
+
+      {/* Bottom nav — mobile only */}
+      <nav
+        className="sm:hidden fixed bottom-0 inset-x-0 z-50 px-3"
+        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
+      >
+        <div
+          className="flex items-stretch h-[60px] rounded-2xl border border-surface-dark-border overflow-hidden"
+          style={{
+            background: 'rgba(15,20,32,0.97)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 -1px 0 rgba(255,255,255,0.04), 0 -12px 40px rgba(0,0,0,0.7)',
+          }}
+        >
+          {NAV.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className="flex-1"
+            >
+              {({ isActive }) => (
+                <div
+                  className={cn(
+                    'flex flex-col items-center justify-center h-full gap-1 mx-0.5 my-1 rounded-xl transition-all duration-150',
+                    isActive ? 'bg-brand-500/12' : 'hover:bg-white/4',
+                  )}
+                >
+                  <Icon
+                    size={20}
+                    strokeWidth={isActive ? 2 : 1.5}
+                    className={isActive ? 'text-brand-400' : 'text-gray-600'}
+                  />
+                  <span
+                    className={cn(
+                      'text-[10px] font-medium leading-none',
+                      isActive ? 'text-brand-400' : 'text-gray-600',
+                    )}
+                  >
+                    {label}
+                  </span>
+                </div>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }

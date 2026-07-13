@@ -7,6 +7,8 @@ import type {
   HealthResponse,
   PubIQRequest,
   PubIQResponse,
+  TikTokProfile,
+  TikTokVideosResponse,
 } from './types'
 
 const BASE = '/api'
@@ -79,6 +81,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(req),
     })
+  },
+
+  getCreatorProfile(creatorId: string): Promise<TikTokProfile> {
+    return request<TikTokProfile>(`/auth/tiktok/profile/${encodeURIComponent(creatorId)}`)
+  },
+
+  listCreatorVideos(creatorId: string): Promise<TikTokVideosResponse> {
+    return request<TikTokVideosResponse>(`/auth/tiktok/videos/${encodeURIComponent(creatorId)}`)
   },
 
   authorizeTikTok(creatorId: string): string {

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Zap, CheckCircle, AlertCircle, ChevronDown, RefreshCw } from 'lucide-react'
+import { Play, Zap, CheckCircle, AlertCircle, ChevronDown, RefreshCw, Video } from 'lucide-react'
 import { api } from '@/api/client'
 import { store } from '@/store/app'
 import { toast } from '@/components/ui/Toast'
@@ -9,8 +9,40 @@ import { ZScoreRadar } from '@/components/charts/PerformanceChart'
 import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn, signalBg, urgencyBg, formatNumber, formatPercent } from '@/lib/utils'
-import type { AnalyzePostResponse } from '@/api/types'
+import type { AnalyzePostResponse, TikTokVideo, TikTokProfile } from '@/api/types'
 import { DEMO_CREATORS, DEMO_ANALYZE_REQUEST } from '@/data/demo'
+import type { HistoricalBaseline } from '@/api/types'
+
+function computeBaseline(vids: TikTokVideo[]): HistoricalBaseline | null {
+  if (vids.length < 3) return null
+  const fields = ['view_count', 'like_count', 'comment_count', 'share_count', 'retention_pct'] as const
+  const keys   = ['views',      'likes',      'comments',      'shares',      'retention_pct'] as const
+
+  const means: Record<string, number> = {}
+  const stds:  Record<string, number> = {}
+
+  for (let i = 0; i < fields.length; i++) {
+    const vals = vids.map((v) => fields[i] === 'retention_pct' ? v.retention_pct : (v as any)[fields[i]] as number)
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length
+    const std  = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length)
+    means[keys[i]] = mean
+    stds[keys[i]]  = std
+  }
+
+  return {
+    avg_views:         means.views,
+    std_views:         stds.views,
+    avg_likes:         means.likes,
+    std_likes:         stds.likes,
+    avg_comments:      means.comments,
+    std_comments:      stds.comments,
+    avg_shares:        means.shares,
+    std_shares:        stds.shares,
+    avg_retention_pct: means.retention_pct,
+    std_retention_pct: stds.retention_pct,
+    sample_size:       vids.length,
+  }
+}
 
 type Step = 'form' | 'running' | 'result'
 
@@ -69,6 +101,42 @@ export function AnalyzePage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedCreator, setSelectedCreator] = useState(DEMO_CREATORS[0])
   const [showTrace, setShowTrace] = useState(false)
+  const [videos, setVideos] = useState<TikTokVideo[]>([])
+  const [videosLoading, setVideosLoading] = useState(false)
+  const [selectedVideo, setSelectedVideo] = useState<TikTokVideo | null>(null)
+  const [profile, setProfile] = useState<TikTokProfile | null>(null)
+
+  useEffect(() => {
+    if (!selectedCreator.authorized) {
+      setVideos([])
+      setSelectedVideo(null)
+      setProfile(null)
+      return
+    }
+    let cancelled = false
+    setVideosLoading(true)
+    setVideos([])
+    setSelectedVideo(null)
+    setProfile(null)
+    // Reset pipeline state when creator changes
+    setStep('form')
+    setResult(null)
+    setError(null)
+    setAgentProgress({})
+    Promise.all([
+      api.getCreatorProfile(selectedCreator.id).catch(() => null),
+      api.listCreatorVideos(selectedCreator.id).catch(() => null),
+    ]).then(([prof, vidRes]) => {
+      if (cancelled) return
+      if (prof) setProfile(prof)
+      const vids = vidRes?.videos ?? []
+      setVideos(vids)
+      if (vids.length > 0) setSelectedVideo(vids[0])
+    }).finally(() => {
+      if (!cancelled) setVideosLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [selectedCreator.id, selectedCreator.authorized])
 
   async function runAnalysis() {
     setStep('running')
@@ -93,11 +161,34 @@ export function AnalyzePage() {
     const t2 = setTimeout(() => tickProgress(2), 800)
     const t3 = setTimeout(() => tickProgress(3), 1400)
 
+    const liveStats = selectedVideo
+      ? {
+          views: selectedVideo.view_count,
+          likes: selectedVideo.like_count,
+          comments: selectedVideo.comment_count,
+          shares: selectedVideo.share_count,
+          retention_pct: selectedVideo.retention_pct,
+        }
+      : DEMO_ANALYZE_REQUEST.current_stats
+
     const req = {
       ...DEMO_ANALYZE_REQUEST,
       creator_id: selectedCreator.id,
-      post_id: `vid_live_${Math.random().toString(36).slice(2, 8)}`,
-      historical_baseline: selectedCreator.baseline,
+      post_id: selectedVideo ? selectedVideo.id : `vid_live_${Math.random().toString(36).slice(2, 8)}`,
+      detected_at: selectedVideo
+        ? new Date(selectedVideo.create_time * 1000).toISOString()
+        : DEMO_ANALYZE_REQUEST.detected_at,
+      current_stats: liveStats,
+      historical_baseline: (() => {
+        if (selectedCreator.baseline.sample_size >= 3) return selectedCreator.baseline
+        // Exclude the selected video from its own baseline (leave-one-out)
+        const baselineVids = selectedVideo
+          ? videos.filter((v) => v.id !== selectedVideo.id)
+          : videos
+        return baselineVids.length >= 3
+          ? computeBaseline(baselineVids) ?? selectedCreator.baseline
+          : selectedCreator.baseline
+      })(),
     }
 
     try {
@@ -117,6 +208,7 @@ export function AnalyzePage() {
         id: crypto.randomUUID(),
         creator_id: res.creator_id,
         post_id: res.post_id,
+        post_title: selectedVideo?.video_description || undefined,
         platform: 'tiktok',
         urgency: res.urgency,
         signal: res.signal as import('@/api/types').Signal,
@@ -172,7 +264,7 @@ export function AnalyzePage() {
               key={c.id}
               onClick={() => setSelectedCreator(c)}
               className={cn(
-                'flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
+                'flex min-h-14 items-center gap-3 rounded-xl border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]',
                 selectedCreator.id === c.id
                   ? 'bg-brand-500/15 border-brand-500/40 text-gray-100'
                   : 'bg-white/3 border-white/8 text-gray-400 hover:border-white/15',
@@ -186,7 +278,15 @@ export function AnalyzePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{c.handle}</p>
-                <p className="text-xs text-gray-500">{formatNumber(c.followers)} followers</p>
+                <p className="text-xs text-gray-500">
+                  {c.id === selectedCreator.id && profile
+                    ? `${formatNumber(profile.follower_count)} followers`
+                    : c.id === selectedCreator.id && videosLoading
+                    ? 'Loading…'
+                    : c.followers > 0
+                    ? `${formatNumber(c.followers)} followers`
+                    : '—'}
+                </p>
               </div>
               {!c.authorized && (
                 <span className="text-xs text-amber-500 border border-amber-500/30 px-2 py-0.5 rounded-lg">
@@ -201,11 +301,76 @@ export function AnalyzePage() {
         </div>
       </div>
 
-      {/* Post payload preview */}
+      {/* Video picker — only shown for authorized creators */}
+      {selectedCreator.authorized && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Video size={13} className="text-brand-400" />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Recent Videos
+            </p>
+            {videosLoading && <Spinner size="sm" />}
+          </div>
+          {!videosLoading && videos.length === 0 && (
+            <p className="text-xs text-gray-500">
+              No videos found. Token may be missing — complete OAuth in Settings.
+            </p>
+          )}
+          {videos.length > 0 && (
+            <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+              {videos.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setSelectedVideo(v)}
+                  className={cn(
+                    'flex min-h-14 items-center gap-3 rounded-xl border p-2.5 text-left transition-all focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]',
+                    selectedVideo?.id === v.id
+                      ? 'bg-brand-500/15 border-brand-500/40'
+                      : 'bg-white/3 border-white/5 hover:border-white/15',
+                  )}
+                >
+                  {v.cover_image_url && (
+                    <img
+                      src={v.cover_image_url}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-cover shrink-0 bg-white/5"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-300 truncate">
+                      {v.video_description || '(no caption)'}
+                    </p>
+                    <p className="text-[10px] text-gray-600 mt-0.5 tabular-nums">
+                      {formatNumber(v.view_count)} views · {formatNumber(v.like_count)} likes
+                    </p>
+                  </div>
+                  {selectedVideo?.id === v.id && (
+                    <CheckCircle size={14} className="text-brand-400 shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Post stats preview */}
       <div className="card p-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Simulated Post Stats</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          {selectedVideo ? 'Live Post Stats' : 'Simulated Post Stats'}
+        </p>
         <div className="grid grid-cols-5 gap-2">
-          {Object.entries(DEMO_ANALYZE_REQUEST.current_stats).map(([k, v]) => (
+          {Object.entries(
+            selectedVideo
+              ? {
+                  views: selectedVideo.view_count,
+                  likes: selectedVideo.like_count,
+                  comments: selectedVideo.comment_count,
+                  shares: selectedVideo.share_count,
+                  retention_pct: selectedVideo.retention_pct,
+                }
+              : DEMO_ANALYZE_REQUEST.current_stats
+          ).map(([k, v]) => (
             <div key={k} className="bg-white/3 rounded-lg p-2 text-center">
               <p className="text-xs text-gray-500 capitalize">{k.replace('_pct', ' %')}</p>
               <p className="text-sm font-semibold text-gray-200 tabular-nums mt-0.5">
@@ -214,13 +379,18 @@ export function AnalyzePage() {
             </div>
           ))}
         </div>
+        {selectedVideo && (
+          <p className="text-[10px] text-gray-600 mt-2">
+            retention % estimated from engagement signals (likes, comments, shares)
+          </p>
+        )}
       </div>
 
       {/* Run button */}
       {step === 'form' && (
         <button
           onClick={runAnalysis}
-          className="btn-primary flex items-center justify-center gap-2 py-3 text-base"
+          className="btn-primary flex min-h-12 items-center justify-center gap-2 text-base focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]"
         >
           <Play size={16} />
           Run pipeline
@@ -301,7 +471,7 @@ export function AnalyzePage() {
             {/* Trace */}
             <button
               onClick={() => setShowTrace((t) => !t)}
-              className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="-ml-2 flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
             >
               <ChevronDown size={14} className={cn('transition-transform', showTrace && 'rotate-180')} />
               Trace · {result.total_latency_ms.toFixed(0)}ms total
@@ -320,7 +490,7 @@ export function AnalyzePage() {
             {/* Run again */}
             <button
               onClick={() => { setStep('form'); setResult(null); setAgentProgress({}) }}
-              className="btn-ghost flex items-center justify-center gap-2"
+              className="btn-ghost flex min-h-11 items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
             >
               <RefreshCw size={14} />
               Run again
@@ -343,7 +513,7 @@ export function AnalyzePage() {
           <p className="text-xs text-red-400/80 font-mono">{error}</p>
           <button
             onClick={() => { setStep('form'); setError(null); setAgentProgress({}) }}
-            className="mt-3 btn-ghost text-xs"
+            className="btn-ghost mt-3 min-h-11 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
           >
             Try again
           </button>

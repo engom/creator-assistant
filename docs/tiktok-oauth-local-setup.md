@@ -3,6 +3,23 @@
 TikTok's Login Kit rejects `localhost` and `127.0.0.1` as redirect URIs.
 Use a Cloudflare tunnel to get a public HTTPS URL that forwards to your local server.
 
+## Recommended: use the in-app setup assistant
+
+Open **Omicron → Settings → TikTok OAuth setup assistant**. The UI now turns the
+manual flow below into copyable, guided steps:
+
+1. Start the tunnel with the command shown in the UI.
+2. Paste the generated `https://...trycloudflare.com` URL into the **Cloudflare tunnel URL** field.
+3. Copy the generated **TikTok Login Kit redirect URI** into the TikTok developer console.
+4. Copy the generated `.env` line for `TIKTOK_REDIRECT_URI`.
+5. Choose a creator and click **Open OAuth** / **Authorize**.
+
+TikTok still requires one console action that cannot be automated locally: add the
+redirect URI under **Products → Login Kit**, ensure the scopes are enabled, add the
+creator under **Sandbox settings → Target Users**, and click **Apply changes**.
+
+Use the detailed notes below only if you need to debug the local flow manually.
+
 ## One-time setup
 
 ### 1. Install cloudflared

@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -80,6 +82,47 @@ class PostStats:
 # ---------------------------------------------------------------------------
 
 
+def estimate_retention_pct(
+    views: int,
+    likes: int,
+    comments: int,
+    shares: int,
+) -> float:
+    """Estimate retention % from engagement signals (Display API proxy).
+
+    TikTok's completion rate isn't exposed in the Display API, but engagement
+    actions (like, comment, share) require watching the video, so they correlate
+    strongly with watch-through rate.
+
+    Formula: weighted_engagement = (likes + comments×2 + shares×3) / views
+    Comments and shares carry heavier weight — they signal fuller watch-through.
+    Scale to a [0, 95] retention range using an empirical ×4.5 multiplier
+    (TikTok avg retention ~35%, avg weighted engagement ~7-8%).
+
+    Returns 0.0 if views == 0.
+    """
+    if views == 0:
+        return 0.0
+    weighted = (likes + comments * 2 + shares * 3) / views
+    return round(min(weighted * 4.5 * 100, 95.0), 1)
+
+
+def _check_tiktok_error(body: dict) -> None:
+    """Raise RuntimeError if the TikTok response body signals an API error.
+
+    Handles both dict-shaped errors ({"code": "...", "message": "..."}) and
+    plain-string errors, avoiding AttributeError on unexpected response shapes.
+    """
+    err = body.get("error")
+    if not err:
+        return
+    if isinstance(err, dict):
+        if err.get("code", "ok") != "ok":
+            raise RuntimeError(f"TikTok API error: {err}")
+    else:
+        raise RuntimeError(f"TikTok API error: {err}")
+
+
 def build_authorization_url(
     client_id: str,
     redirect_uri: str,
@@ -124,8 +167,6 @@ def exchange_code_for_tokens(
     Requires the Display API product (no audit needed).
     Register at https://developers.tiktok.com and add the Display API product.
     """
-    import httpx
-
     resp = httpx.post(
         TIKTOK_TOKEN_URL,
         data={
@@ -158,7 +199,6 @@ def refresh_access_token(
     Returns:
         {access_token, refresh_token, expires_in, open_id}
     """
-    import httpx
 
     resp = httpx.post(
         TIKTOK_TOKEN_URL,
@@ -341,6 +381,15 @@ class TikTokStatsClient:
         self._client_secret = client_secret
         self._token_store = token_store or InMemoryTokenStore()
 
+    def _require_token(self, creator_id: str) -> dict:
+        tokens = self._token_store.get(creator_id)
+        if tokens is None:
+            raise RuntimeError(
+                f"No access token for creator_id={creator_id!r}. "
+                "Complete the OAuth flow at /auth/tiktok/authorize first."
+            )
+        return tokens
+
     def fetch_post_stats(self, creator_id: str, post_id: str) -> PostStats:
         """Fetch normalized stats for a post via TikTok Display API.
 
@@ -350,14 +399,8 @@ class TikTokStatsClient:
         The access token for creator_id must be stored via the token store.
         retention_pct is not available from the Display API — set to 0.0.
         """
-        import httpx
 
-        tokens = self._token_store.get(creator_id)
-        if tokens is None:
-            raise RuntimeError(
-                f"No access token for creator_id={creator_id!r}. "
-                "Complete the OAuth flow at /auth/tiktok/authorize first."
-            )
+        tokens = self._require_token(creator_id)
 
         resp = httpx.post(
             "https://open.tiktokapis.com/v2/video/list/",
@@ -372,8 +415,7 @@ class TikTokStatsClient:
         resp.raise_for_status()
         body = resp.json()
 
-        if (body.get("error") or {}).get("code", "ok") != "ok":
-            raise RuntimeError(f"TikTok API error: {body['error']}")
+        _check_tiktok_error(body)
 
         videos = body.get("data", {}).get("videos", [])
         matched = next((v for v in videos if v.get("id") == post_id), None)
@@ -382,17 +424,78 @@ class TikTokStatsClient:
                 f"post_id={post_id!r} not found in the most recent 20 videos for creator_id={creator_id!r}."
             )
 
+        views = int(matched.get("view_count", 0))
+        likes = int(matched.get("like_count", 0))
+        comments = int(matched.get("comment_count", 0))
+        shares = int(matched.get("share_count", 0))
         return PostStats(
             post_id=post_id,
             creator_id=creator_id,
             platform="tiktok",
-            views=int(matched.get("view_count", 0)),
-            likes=int(matched.get("like_count", 0)),
-            comments=int(matched.get("comment_count", 0)),
-            shares=int(matched.get("share_count", 0)),
-            retention_pct=0.0,  # not available in Display API
+            views=views,
+            likes=likes,
+            comments=comments,
+            shares=shares,
+            retention_pct=estimate_retention_pct(views, likes, comments, shares),
             fetched_at=datetime.now(timezone.utc).isoformat(),
         )
+
+    def fetch_user_info(self, creator_id: str) -> dict:
+        """Fetch profile + stats for creator_id via TikTok Display API.
+
+        Required scopes: user.info.basic (display_name, avatar_url),
+                         user.info.stats (follower_count, following_count, likes_count, video_count).
+        Returns a dict with those fields.
+        """
+
+        tokens = self._require_token(creator_id)
+        fields = "open_id,union_id,avatar_url,display_name,follower_count,following_count,likes_count,video_count"
+        resp = httpx.get(
+            "https://open.tiktokapis.com/v2/user/info/",
+            params={"fields": fields},
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        _check_tiktok_error(body)
+        return body.get("data", {}).get("user", {})
+
+    def fetch_creator_videos(self, creator_id: str, max_count: int = 20) -> list[dict]:
+        """Return up to max_count recent videos for creator_id as a list of dicts.
+
+        Each dict has: id, create_time, view_count, like_count, comment_count,
+        share_count, video_description, duration, cover_image_url.
+        Requires the token to have been stored via the token store first.
+        """
+        tokens = self._require_token(creator_id)
+        fields = "id,create_time,view_count,like_count,comment_count,share_count,video_description,duration,cover_image_url"
+        resp = httpx.post(
+            "https://open.tiktokapis.com/v2/video/list/",
+            params={"fields": fields},
+            headers={
+                "Authorization": f"Bearer {tokens['access_token']}",
+                "Content-Type": "application/json",
+            },
+            json={"max_count": max_count},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        _check_tiktok_error(body)
+        raw_videos = body.get("data", {}).get("videos", [])
+        return [
+            {
+                **vid,
+                "retention_pct": estimate_retention_pct(
+                    int(vid.get("view_count", 0)),
+                    int(vid.get("like_count", 0)),
+                    int(vid.get("comment_count", 0)),
+                    int(vid.get("share_count", 0)),
+                ),
+            }
+            for vid in raw_videos
+        ]
 
     @staticmethod
     def mock_stats(creator_id: str, post_id: str, **overrides: Any) -> PostStats:

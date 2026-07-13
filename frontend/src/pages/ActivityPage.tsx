@@ -51,7 +51,7 @@ export function ActivityPage() {
             key={c.id}
             onClick={() => setActiveId(c.id)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium whitespace-nowrap transition-all',
+              'flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-medium whitespace-nowrap transition-all focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]',
               activeId === c.id
                 ? 'bg-brand-500/20 border-brand-500/40 text-brand-300'
                 : 'bg-white/3 border-white/8 text-gray-400 hover:border-white/15 hover:text-gray-200',
@@ -119,7 +119,7 @@ export function ActivityPage() {
           {!creator.authorized && (
             <a
               href={`/api/auth/tiktok/authorize?creator_id=${creator.id}`}
-              className="mt-3 inline-block text-xs text-brand-400 hover:text-brand-300"
+              className="mt-3 inline-flex min-h-11 items-center rounded-xl px-3 text-xs text-brand-400 transition hover:bg-brand-500/10 hover:text-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
             >
               Authorize TikTok →
             </a>
@@ -163,15 +163,18 @@ export function ActivityPage() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { name: 'monitoring-agent', status: 'active' },
-            { name: 'analytics-agent', status: 'active' },
-            { name: 'insight-agent', status: 'active' },
-            { name: 'notification-agent', status: 'active' },
+            { name: 'monitoring-agent', label: 'Monitor' },
+            { name: 'analytics-agent', label: 'Analytics' },
+            { name: 'insight-agent',   label: 'Insight' },
+            { name: 'notification-agent', label: 'Notify' },
           ].map((a) => (
-            <div key={a.name} className="flex items-center gap-2 p-2.5 bg-white/3 rounded-xl border border-white/5">
+            <div key={a.name} className="flex items-center gap-2.5 p-2.5 bg-white/3 rounded-xl border border-white/5">
               <Cpu size={12} className="text-brand-400 shrink-0" />
-              <span className="text-xs text-gray-400 font-mono truncate">{a.name}</span>
-              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-300">{a.label}</p>
+                <p className="text-[10px] text-gray-600 font-mono truncate">{a.name}</p>
+              </div>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
             </div>
           ))}
         </div>

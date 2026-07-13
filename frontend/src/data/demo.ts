@@ -2,11 +2,41 @@ import type { CreatorProfile, Notification } from '@/api/types'
 
 export const DEMO_CREATORS: CreatorProfile[] = [
   {
+    id: 'eurafricanews',
+    handle: '@eurafricanews',
+    platform: 'tiktok',
+    followers: 0,
+    authorized: true,
+    baseline: {
+      avg_views: 10000, std_views: 3000,
+      avg_likes: 800,   std_likes: 250,
+      avg_comments: 60,  std_comments: 20,
+      avg_shares: 40,   std_shares: 15,
+      avg_retention_pct: 30.0, std_retention_pct: 5.0,
+      sample_size: 0,
+    },
+  },
+  {
+    id: 'elpanthio',
+    handle: '@elpanthio',
+    platform: 'tiktok',
+    followers: 0,
+    authorized: true,
+    baseline: {
+      avg_views: 10000, std_views: 3000,
+      avg_likes: 800,   std_likes: 250,
+      avg_comments: 60,  std_comments: 20,
+      avg_shares: 40,   std_shares: 15,
+      avg_retention_pct: 30.0, std_retention_pct: 5.0,
+      sample_size: 0,
+    },
+  },
+  {
     id: 'creator_mia_chen',
     handle: '@mia.creates',
     platform: 'tiktok',
     followers: 284_000,
-    authorized: true,
+    authorized: false,
     baseline: {
       avg_views: 42000, std_views: 11000,
       avg_likes: 3100,  std_likes: 820,
@@ -21,7 +51,7 @@ export const DEMO_CREATORS: CreatorProfile[] = [
     handle: '@jakevis',
     platform: 'tiktok',
     followers: 97_000,
-    authorized: true,
+    authorized: false,
     baseline: {
       avg_views: 18000, std_views: 5400,
       avg_likes: 1200,  std_likes: 380,
@@ -29,21 +59,6 @@ export const DEMO_CREATORS: CreatorProfile[] = [
       avg_shares: 62,   std_shares: 22,
       avg_retention_pct: 28.0, std_retention_pct: 4.0,
       sample_size: 10,
-    },
-  },
-  {
-    id: 'creator_sara_world',
-    handle: '@saraworld',
-    platform: 'tiktok',
-    followers: 512_000,
-    authorized: false,
-    baseline: {
-      avg_views: 91000, std_views: 24000,
-      avg_likes: 7200,  std_likes: 1900,
-      avg_comments: 560, std_comments: 140,
-      avg_shares: 420,  std_shares: 110,
-      avg_retention_pct: 41.0, std_retention_pct: 6.8,
-      sample_size: 18,
     },
   },
 ]
@@ -54,8 +69,9 @@ function nid() { return `notif_${_notifId++}` }
 export const DEMO_NOTIFICATIONS: Notification[] = [
   {
     id: nid(),
-    creator_id: 'creator_mia_chen',
+    creator_id: 'elpanthio',
     post_id: 'vid_9kQm3x',
+    post_title: 'PSG Champion d\'Europe ⭐⭐ #psg #championsleague',
     platform: 'tiktok',
     urgency: 'high',
     signal: 'above_baseline',
@@ -76,8 +92,9 @@ export const DEMO_NOTIFICATIONS: Notification[] = [
   },
   {
     id: nid(),
-    creator_id: 'creator_jake_vis',
+    creator_id: 'elpanthio',
     post_id: 'vid_2pLt7s',
+    post_title: 'Réaction finale Champions League 🔥 #reaction',
     platform: 'tiktok',
     urgency: 'medium',
     signal: 'above_baseline',
@@ -98,8 +115,9 @@ export const DEMO_NOTIFICATIONS: Notification[] = [
   },
   {
     id: nid(),
-    creator_id: 'creator_mia_chen',
+    creator_id: 'elpanthio',
     post_id: 'vid_7nBq9a',
+    post_title: 'Mon avis honnête sur cette tendance 👀',
     platform: 'tiktok',
     urgency: 'high',
     signal: 'below_baseline',
@@ -121,7 +139,7 @@ export const DEMO_NOTIFICATIONS: Notification[] = [
 ]
 
 export const DEMO_ANALYZE_REQUEST = {
-  creator_id: 'creator_mia_chen',
+  creator_id: 'elpanthio',
   post_id: `vid_demo_${Math.random().toString(36).slice(2, 8)}`,
   platform: 'tiktok' as const,
   detected_at: new Date().toISOString(),

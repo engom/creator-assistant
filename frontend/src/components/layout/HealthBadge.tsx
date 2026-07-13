@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { Wifi, WifiOff, AlertTriangle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { AlertTriangle } from 'lucide-react'
 import { useAppStore, store } from '@/store/app'
 import { api } from '@/api/client'
 
@@ -24,21 +23,30 @@ export function HealthBadge() {
 
   if (status === 'unknown') return null
 
+  if (status === 'ok') {
+    return (
+      <div
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium"
+        style={{
+          background: 'rgba(0,212,170,0.08)',
+          borderColor: 'rgba(0,212,170,0.2)',
+          color: '#00d4aa',
+        }}
+        title="System healthy"
+      >
+        <span className="live-dot" style={{ width: 5, height: 5 }} />
+        <span className="hidden sm:inline">Live</span>
+      </div>
+    )
+  }
+
   return (
     <div
-      className={cn(
-        'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border',
-        status === 'ok'
-          ? 'bg-green-500/10 border-green-500/20 text-green-400'
-          : 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-      )}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium bg-amber-500/10 border-amber-500/20 text-amber-400"
       title={lmError ?? undefined}
     >
-      {status === 'ok'
-        ? <Wifi size={11} />
-        : <AlertTriangle size={11} />
-      }
-      <span className="hidden sm:inline">{status === 'ok' ? 'Live' : 'Degraded'}</span>
+      <AlertTriangle size={11} />
+      <span className="hidden sm:inline">Degraded</span>
     </div>
   )
 }

@@ -10,3 +10,6 @@ build/
 compiled_*.json
 .claude/
 CLAUDE.md
+.postman
+postman
+tmp-mobile-test

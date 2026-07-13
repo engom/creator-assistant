@@ -90,20 +90,22 @@ def create_app() -> FastAPI:
     )
 
     # DBOS must be instantiated before the app starts (it adds middleware).
+    # Do NOT pass fastapi=app — that would install a lifespan hook that calls
+    # _launch() unconditionally, crashing startup when Postgres is unavailable.
+    # The explicit DBOS.launch() call in lifespan() is guarded by db_pool.
     try:
         DBOS(
             config=DBOSConfig(
                 name="omicron-creator-agent",
                 database_url=settings.database_url,
             ),
-            fastapi=app,
         )
     except Exception as exc:
         logger.warning("DBOS init skipped ({exc}) — workflow features disabled", exc=exc)
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000"],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
