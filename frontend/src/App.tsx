@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { FeedPage } from '@/pages/FeedPage'
 import { AnalyzePage } from '@/pages/AnalyzePage'
@@ -10,7 +10,7 @@ import { PushBanner } from '@/components/notifications/PushBanner'
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <PushBanner />
       <Routes>
         <Route element={<AppShell />}>
@@ -22,6 +22,6 @@ export default function App() {
         </Route>
       </Routes>
       <ToastContainer />
-    </BrowserRouter>
+    </HashRouter>
   )
 }

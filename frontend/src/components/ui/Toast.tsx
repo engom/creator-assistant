@@ -15,8 +15,12 @@ export interface ToastItem {
 
 const toastListeners = new Set<(t: ToastItem) => void>()
 
+export function genId(): string {
+  return crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
 export function toast(item: Omit<ToastItem, 'id'>) {
-  const t: ToastItem = { ...item, id: crypto.randomUUID() }
+  const t: ToastItem = { ...item, id: genId() }
   toastListeners.forEach((l) => l(t))
 }
 

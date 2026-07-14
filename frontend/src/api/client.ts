@@ -11,7 +11,9 @@ import type {
   TikTokVideosResponse,
 } from './types'
 
-const BASE = '/api'
+// On Android/iOS (file:// origin) relative URLs don't work — point straight at the backend
+const isNative = window.location.protocol === 'file:'
+const BASE = isNative ? 'http://192.168.1.155:8000' : '/api'
 
 function getApiKey(): string {
   return localStorage.getItem('omicron_api_key') ?? ''

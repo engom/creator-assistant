@@ -27,6 +27,15 @@ class PostPerformanceInsight(dspy.Signature):
             "Format: 'avg_views=8900 avg_likes=610 avg_comments=88 avg_shares=41 avg_retention=31%'"
         )
     )
+    forecast_context: str = dspy.InputField(
+        desc=(
+            "ML-model projection for stats at the next checkpoint (T+60), trained on this "
+            "post's prior checkpoints. Empty string when no model data is available — omit "
+            "from the insight in that case. When present, reference it only as supporting "
+            "context alongside the observed delta; do not cite it as a certainty. "
+            "Format: 'ML forecast at T+60 (model, n=N): forecast_views=18600 ...'"
+        )
+    )
 
     insight: str = dspy.OutputField(
         desc="One sentence, comparative, citing the specific stat delta. No predictions."

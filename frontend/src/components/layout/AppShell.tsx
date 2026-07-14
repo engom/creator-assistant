@@ -58,21 +58,27 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* Main content — extra bottom padding on mobile to clear bottom nav */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 pb-32 sm:pb-6 safe-bottom">
+      {/* Main content — bottom padding must exceed nav height + system bar */}
+      <main
+        className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 sm:pb-6"
+        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <Outlet />
       </main>
 
       {/* Scrim above bottom nav — mobile only */}
       <div
-        className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 pointer-events-none"
-        style={{ background: 'linear-gradient(to top, #07090e 0%, rgba(7,9,14,0.7) 40%, transparent 100%)' }}
+        className="sm:hidden fixed bottom-0 inset-x-0 z-40 pointer-events-none"
+        style={{
+          height: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
+          background: 'linear-gradient(to top, #07090e 0%, rgba(7,9,14,0.7) 40%, transparent 100%)',
+        }}
       />
 
       {/* Bottom nav — mobile only */}
       <nav
         className="sm:hidden fixed bottom-0 inset-x-0 z-50 px-3"
-        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
+        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
       >
         <div
           className="flex items-stretch h-[60px] rounded-2xl border border-surface-dark-border overflow-hidden"

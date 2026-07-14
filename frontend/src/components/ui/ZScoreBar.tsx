@@ -37,7 +37,7 @@ interface ZScorePanelProps {
   className?: string
 }
 
-const STAT_LABELS: Record<string, string> = {
+export const STAT_LABELS: Record<string, string> = {
   views: 'Views',
   likes: 'Likes',
   comments: 'Comments',

@@ -45,6 +45,12 @@ export interface AnalyzePostRequest {
   historical_baseline: HistoricalBaseline
 }
 
+export interface ForecastStat {
+  stat: string
+  value: number
+  unit: 'pct' | 'count'
+}
+
 export interface AnalyzePostResponse {
   creator_id: string
   post_id: string
@@ -55,6 +61,7 @@ export interface AnalyzePostResponse {
   insight: string
   urgency: Urgency
   recommended_action: string
+  forecast_context: string  // "" when no checkpoint history
   notification_dispatched: boolean
   trace_ids: Record<string, string>
   total_latency_ms: number

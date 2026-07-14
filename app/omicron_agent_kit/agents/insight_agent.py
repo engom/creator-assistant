@@ -8,16 +8,20 @@ Required input fields:
     current_stats       (str) — e.g. "views=12400 likes=890 comments=134 shares=67 retention=38%"
     historical_baseline (str) — e.g. "avg_views=8900 avg_likes=610 avg_comments=88 avg_shares=41 avg_retention=31%"
 
-Optional (passed through to output for chaining):
-    creator_id  (str)
-    post_id     (str)
-    platform    (str)
-    signal      (str) — from analytics-agent: above_baseline | within_baseline | below_baseline
+Optional:
+    creator_id          (str)
+    post_id             (str)
+    platform            (str)
+    signal              (str) — from analytics-agent: above_baseline | within_baseline | below_baseline
+    checkpoint_history  (list[dict]) — prior checkpoints from db.checkpoints.get_checkpoints;
+                         when provided, a HistGBR model is fitted and a T+60 forecast is
+                         injected into the DSPy prompt as forecast_context
 """
 
 import dspy
 
 from omicron_agent_kit.agents.base import BaseAgent
+from omicron_agent_kit.ml.forecast import PostPerformanceForecast
 from omicron_agent_kit.signatures.post_performance_insight import PostPerformanceInsight
 
 
@@ -43,9 +47,17 @@ class InsightAgent(BaseAgent):
         if not historical_baseline:
             raise ValueError("historical_baseline is required")
 
+        forecast_context = _build_forecast_context(
+            current_stats=inputs.get("current_stats_dict") or current_stats,
+            historical_baseline=inputs.get("historical_baseline_dict") or historical_baseline,
+            checkpoint_history=inputs.get("checkpoint_history") or [],
+            signal=inputs.get("signal") or "within_baseline",
+        )
+
         prediction = self._program(
             current_stats=current_stats,
             historical_baseline=historical_baseline,
+            forecast_context=forecast_context,
         )
 
         urgency = (getattr(prediction, "urgency", "") or "").strip().lower()
@@ -61,4 +73,24 @@ class InsightAgent(BaseAgent):
             "urgency": urgency,
             "recommended_action": getattr(prediction, "recommended_action", None) or "",
             "reasoning": getattr(prediction, "reasoning", None),
+            "forecast_context": forecast_context,
         }
+
+
+def _build_forecast_context(
+    current_stats: dict | str,
+    historical_baseline: dict | str,
+    checkpoint_history: list[dict],
+    signal: str,
+) -> str:
+    """Fit the forecaster on checkpoint history and return a context string.
+
+    Accepts raw dicts (from analytics_agent's current_stats_dict /
+    historical_baseline_dict) or formatted strings — the forecaster handles both.
+    Returns an empty string when there is no checkpoint data — signals the LLM
+    to omit the forecast section rather than citing generic benchmark ratios.
+    """
+    forecaster = PostPerformanceForecast()
+    forecaster.fit(checkpoint_history, historical_baseline)
+    result = forecaster.predict(current_stats, historical_baseline, signal)
+    return result.context_str if result.is_meaningful else ""

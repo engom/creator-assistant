@@ -16,8 +16,7 @@ from dataclasses import dataclass
 import asyncpg
 
 from omicron_agent_kit.db.connection import get_pool
-
-_STAT_NAMES = ("views", "likes", "comments", "shares", "retention_pct")
+from omicron_agent_kit.stats import STAT_NAMES as _STAT_NAMES
 
 
 @dataclass

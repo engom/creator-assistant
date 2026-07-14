@@ -21,34 +21,22 @@ Required input fields:
 """
 
 from omicron_agent_kit.agents.base import BaseAgent
+from omicron_agent_kit.stats import STAT_DISPLAY_ALIASES, STAT_NAMES
 
 _STAT_PAIRS = [
-    ("views", "avg_views", "std_views"),
-    ("likes", "avg_likes", "std_likes"),
-    ("comments", "avg_comments", "std_comments"),
-    ("shares", "avg_shares", "std_shares"),
-    ("retention_pct", "avg_retention_pct", "std_retention_pct"),
+    (s, f"avg_{s}", f"std_{s}") for s in STAT_NAMES
 ]
 
 _STAT_DISPLAY = [
-    ("views", "avg_views"),
-    ("likes", "avg_likes"),
-    ("comments", "avg_comments"),
-    ("shares", "avg_shares"),
-    ("retention_pct", "avg_retention_pct"),
+    (s, f"avg_{s}") for s in STAT_NAMES
 ]
 
-_DISPLAY_NAMES = {
-    "views": "views",
-    "avg_views": "avg_views",
-    "likes": "likes",
-    "avg_likes": "avg_likes",
-    "comments": "comments",
-    "avg_comments": "avg_comments",
-    "shares": "shares",
-    "avg_shares": "avg_shares",
-    "retention_pct": "retention",
-    "avg_retention_pct": "avg_retention",
+# Display names for the formatted strings passed to DSPy prompts.
+# Identical to canonical key except for the two aliases in STAT_DISPLAY_ALIASES.
+_DISPLAY_NAMES: dict[str, str] = {
+    key: STAT_DISPLAY_ALIASES.get(key, key)
+    for s in STAT_NAMES
+    for key in (s, f"avg_{s}")
 }
 
 
@@ -125,7 +113,10 @@ class AnalyticsAgent(BaseAgent):
             "z_scores": z_scores,
             "signal": signal,
             "sample_size": baseline.get("sample_size", 0),
-            # Formatted strings ready to pass into PostPerformanceInsight
+            # Formatted strings ready to pass into PostPerformanceInsight (DSPy)
             "current_stats_str": current_str,
             "historical_baseline_str": baseline_str,
+            # Raw numeric dicts for the ML forecaster (avoids string round-trip)
+            "current_stats_dict": {k: v for k, v in current.items() if k in STAT_NAMES},
+            "historical_baseline_dict": {k: v for k, v in baseline.items() if k != "sample_size"},
         }

@@ -304,6 +304,14 @@ class AnalyzePostResponse(BaseModel):
     recommended_action: str = Field(
         ..., description="Concrete next step recommended by the insight agent."
     )
+    forecast_context: str = Field(
+        default="",
+        description=(
+            "ML-model T+60 projection string from the forecaster, e.g. "
+            "'ML forecast at T+60 (model, n=3): forecast_views=18600 ...'. "
+            "Empty string when no checkpoint history is available."
+        ),
+    )
     notification_dispatched: bool = Field(
         ..., description="True when medium/high urgency triggered a notification dispatch."
     )

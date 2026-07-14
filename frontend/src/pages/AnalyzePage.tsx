@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Zap, CheckCircle, AlertCircle, ChevronDown, RefreshCw, Video } from 'lucide-react'
+import { Play, Zap, CheckCircle, AlertCircle, ChevronDown, RefreshCw, Video, TrendingUp } from 'lucide-react'
 import { api } from '@/api/client'
 import { store } from '@/store/app'
 import { toast } from '@/components/ui/Toast'
@@ -9,7 +9,9 @@ import { ZScoreRadar } from '@/components/charts/PerformanceChart'
 import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn, signalBg, urgencyBg, formatNumber, formatPercent } from '@/lib/utils'
-import type { AnalyzePostResponse, TikTokVideo, TikTokProfile } from '@/api/types'
+import type { AnalyzePostResponse, TikTokVideo, TikTokProfile, ForecastStat } from '@/api/types'
+import { STAT_LABELS } from '@/components/ui/ZScoreBar'
+import { genId } from '@/components/ui/Toast'
 import { DEMO_CREATORS, DEMO_ANALYZE_REQUEST } from '@/data/demo'
 import type { HistoricalBaseline } from '@/api/types'
 
@@ -42,6 +44,104 @@ function computeBaseline(vids: TikTokVideo[]): HistoricalBaseline | null {
     std_retention_pct: stds.retention_pct,
     sample_size:       vids.length,
   }
+}
+
+// Parse "ML forecast at T+60 (model, n=3): forecast_views=18600 forecast_likes=1200 ..."
+function parseForecastContext(
+  ctx: string,
+): { stats: ForecastStat[]; confidence: string; n: number } | null {
+  if (!ctx) return null
+  const header = ctx.match(/\((\w+),\s*n=(\d+)\)/)
+  if (!header) return null
+  const confidence = header[1]
+  const n = parseInt(header[2], 10)
+  const stats: ForecastStat[] = []
+  const pairs = ctx.matchAll(/forecast_(\w+)=([\d.?]+)(%?)/g)
+  for (const [, rawStat, rawVal, pct] of pairs) {
+    const val = parseFloat(rawVal)
+    if (isNaN(val)) continue
+    stats.push({ stat: rawStat, value: val, unit: pct === '%' ? 'pct' : 'count' })
+  }
+  if (stats.length === 0) return null
+  return { stats, confidence, n }
+}
+
+function ForecastCard({
+  forecastContext,
+  currentStats,
+}: {
+  forecastContext: string
+  currentStats: Record<string, number>
+}) {
+  const parsed = parseForecastContext(forecastContext)
+  if (!parsed) return null
+
+  const { stats, confidence, n } = parsed
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <TrendingUp size={14} className="text-brand-400" />
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          T+60 Forecast
+        </p>
+        <span className="ml-auto text-[10px] font-mono text-gray-600 border border-white/10 rounded px-1.5 py-0.5">
+          {confidence} · n={n}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {stats.map(({ stat, value, unit }) => {
+          const label = STAT_LABELS[stat] ?? stat
+          const current = currentStats[stat] ?? currentStats[stat.replace('_pct', '')] ?? 0
+          const growth = current > 0 ? ((value - current) / current) * 100 : 0
+          const growing = value >= current
+
+          return (
+            <div key={stat} className="flex items-center gap-3">
+              <p className="w-20 shrink-0 text-xs text-gray-500">{label}</p>
+              <div className="flex-1 flex items-center gap-2 min-w-0">
+                {/* T+30 bar (current) */}
+                <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                  <div className="h-full bg-gray-500/60 rounded-full" style={{ width: '100%' }} />
+                </div>
+                {/* T+60 bar (forecast) */}
+                <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all',
+                      growing ? 'bg-brand-400/80' : 'bg-amber-400/80',
+                    )}
+                    style={{ width: `${Math.min((value / (current || value)) * 100, 200)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="w-24 shrink-0 text-right">
+                <span className="text-xs font-semibold text-gray-200 tabular-nums">
+                  {unit === 'pct' ? `${value.toFixed(1)}%` : formatNumber(value)}
+                </span>
+                {current > 0 && (
+                  <span className={cn(
+                    'ml-1.5 text-[10px] tabular-nums',
+                    growing ? 'text-brand-400' : 'text-amber-400',
+                  )}>
+                    {growing ? '+' : ''}{growth.toFixed(0)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
+        {confidence === 'model'
+          ? `Projection trained on ${n} prior checkpoint pair${n !== 1 ? 's' : ''} for this post.`
+          : `Projection based on ${n} checkpoint pair${n !== 1 ? 's' : ''}. Confidence increases with more data.`}
+        {' '}Not a guarantee — use alongside the z-score analysis.
+      </p>
+    </div>
+  )
 }
 
 type Step = 'form' | 'running' | 'result'
@@ -98,37 +198,41 @@ export function AnalyzePage() {
   const [step, setStep] = useState<Step>('form')
   const [agentProgress, setAgentProgress] = useState<Record<string, 'pending' | 'running' | 'done' | 'error'>>({})
   const [result, setResult] = useState<AnalyzePostResponse | null>(null)
+  const [lastStats, setLastStats] = useState<Record<string, number> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedCreator, setSelectedCreator] = useState(DEMO_CREATORS[0])
   const [showTrace, setShowTrace] = useState(false)
   const [videos, setVideos] = useState<TikTokVideo[]>([])
   const [videosLoading, setVideosLoading] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<TikTokVideo | null>(null)
-  const [profile, setProfile] = useState<TikTokProfile | null>(null)
+  const [profiles, setProfiles] = useState<Record<string, TikTokProfile>>({})
+
+  // Prefetch profiles for all authorized creators so every row shows live follower counts
+  useEffect(() => {
+    DEMO_CREATORS.filter((c) => c.authorized).forEach((c) => {
+      api.getCreatorProfile(c.id).then((prof) => {
+        setProfiles((prev) => ({ ...prev, [c.id]: prof }))
+      }).catch(() => {})
+    })
+  }, [])
 
   useEffect(() => {
     if (!selectedCreator.authorized) {
       setVideos([])
       setSelectedVideo(null)
-      setProfile(null)
       return
     }
     let cancelled = false
     setVideosLoading(true)
     setVideos([])
     setSelectedVideo(null)
-    setProfile(null)
     // Reset pipeline state when creator changes
     setStep('form')
     setResult(null)
     setError(null)
     setAgentProgress({})
-    Promise.all([
-      api.getCreatorProfile(selectedCreator.id).catch(() => null),
-      api.listCreatorVideos(selectedCreator.id).catch(() => null),
-    ]).then(([prof, vidRes]) => {
+    api.listCreatorVideos(selectedCreator.id).catch(() => null).then((vidRes) => {
       if (cancelled) return
-      if (prof) setProfile(prof)
       const vids = vidRes?.videos ?? []
       setVideos(vids)
       if (vids.length > 0) setSelectedVideo(vids[0])
@@ -143,23 +247,25 @@ export function AnalyzePage() {
     setError(null)
     setResult(null)
 
-    // Simulate per-step progress visually (backend runs them sequentially)
     const agentIds = AGENT_STEPS.map((s) => s.id)
-    const progress: Record<string, 'pending' | 'running' | 'done' | 'error'> = {}
-    agentIds.forEach((id) => { progress[id] = 'pending' })
-    setAgentProgress({ ...progress })
+    let cancelled = false
 
-    // Animate progress optimistically
-    async function tickProgress(idx: number) {
-      if (idx >= agentIds.length) return
-      progress[agentIds[idx]] = 'running'
-      setAgentProgress({ ...progress })
-    }
+    // Tick each agent to 'running' sequentially; stop if response arrives first
+    const initialProgress: Record<string, 'pending' | 'running' | 'done' | 'error'> = {}
+    agentIds.forEach((id) => { initialProgress[id] = 'pending' })
+    setAgentProgress({ ...initialProgress })
 
-    tickProgress(0)
-    const t1 = setTimeout(() => tickProgress(1), 300)
-    const t2 = setTimeout(() => tickProgress(2), 800)
-    const t3 = setTimeout(() => tickProgress(3), 1400)
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const delays = [0, 400, 900, 1500]
+    agentIds.forEach((id, i) => {
+      timers.push(setTimeout(() => {
+        if (cancelled) return
+        setAgentProgress((prev) => {
+          if (prev[id] === 'done' || prev[id] === 'error') return prev
+          return { ...prev, [id]: 'running' }
+        })
+      }, delays[i]))
+    })
 
     const liveStats = selectedVideo
       ? {
@@ -191,11 +297,14 @@ export function AnalyzePage() {
       })(),
     }
 
+    setLastStats(liveStats as Record<string, number>)
+
     try {
       const res = await api.analyzePost(req)
 
-      // Mark all done
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3)
+      // Cancel pending ticks, mark all done
+      cancelled = true
+      timers.forEach(clearTimeout)
       const done: Record<string, 'done'> = {}
       agentIds.forEach((id) => { done[id] = 'done' })
       setAgentProgress(done)
@@ -205,7 +314,7 @@ export function AnalyzePage() {
 
       // Push as notification
       store.addNotification({
-        id: crypto.randomUUID(),
+        id: genId(),
         creator_id: res.creator_id,
         post_id: res.post_id,
         post_title: selectedVideo?.video_description || undefined,
@@ -230,18 +339,18 @@ export function AnalyzePage() {
         duration: 6000,
       })
     } catch (err: unknown) {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3)
+      cancelled = true
+      timers.forEach(clearTimeout)
       const errMsg = err instanceof Error ? err.message : 'Unknown error'
       setError(errMsg)
       setStep('result')
-      // Mark running agents as error
-      const errProgress = { ...progress }
-      agentIds.forEach((id) => {
-        if (errProgress[id] === 'running' || errProgress[id] === 'pending') {
-          errProgress[id] = 'error'
-        }
+      setAgentProgress((prev) => {
+        const next = { ...prev }
+        agentIds.forEach((id) => {
+          if (next[id] === 'running' || next[id] === 'pending') next[id] = 'error'
+        })
+        return next
       })
-      setAgentProgress(errProgress)
       toast({ type: 'error', title: 'Analysis failed', message: errMsg })
     }
   }
@@ -279,12 +388,10 @@ export function AnalyzePage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{c.handle}</p>
                 <p className="text-xs text-gray-500">
-                  {c.id === selectedCreator.id && profile
-                    ? `${formatNumber(profile.follower_count)} followers`
-                    : c.id === selectedCreator.id && videosLoading
+                  {profiles[c.id]
+                    ? `${formatNumber(profiles[c.id].follower_count)} followers`
+                    : c.authorized
                     ? 'Loading…'
-                    : c.followers > 0
-                    ? `${formatNumber(c.followers)} followers`
                     : '—'}
                 </p>
               </div>
@@ -317,7 +424,7 @@ export function AnalyzePage() {
             </p>
           )}
           {videos.length > 0 && (
-            <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
               {videos.map((v) => (
                 <button
                   key={v.id}
@@ -359,42 +466,56 @@ export function AnalyzePage() {
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
           {selectedVideo ? 'Live Post Stats' : 'Simulated Post Stats'}
         </p>
-        <div className="grid grid-cols-5 gap-2">
-          {Object.entries(
-            selectedVideo
-              ? {
-                  views: selectedVideo.view_count,
-                  likes: selectedVideo.like_count,
-                  comments: selectedVideo.comment_count,
-                  shares: selectedVideo.share_count,
-                  retention_pct: selectedVideo.retention_pct,
-                }
-              : DEMO_ANALYZE_REQUEST.current_stats
-          ).map(([k, v]) => (
-            <div key={k} className="bg-white/3 rounded-lg p-2 text-center">
-              <p className="text-xs text-gray-500 capitalize">{k.replace('_pct', ' %')}</p>
-              <p className="text-sm font-semibold text-gray-200 tabular-nums mt-0.5">
-                {typeof v === 'number' && k.includes('pct') ? formatPercent(v) : formatNumber(v as number)}
-              </p>
+        {(() => {
+          const stats = selectedVideo
+            ? {
+                views:    { value: selectedVideo.view_count,    pct: false },
+                likes:    { value: selectedVideo.like_count,    pct: false },
+                comments: { value: selectedVideo.comment_count, pct: false },
+                shares:   { value: selectedVideo.share_count,   pct: false },
+                'ret. %': { value: selectedVideo.retention_pct, pct: true  },
+              }
+            : {
+                views:    { value: DEMO_ANALYZE_REQUEST.current_stats.views,         pct: false },
+                likes:    { value: DEMO_ANALYZE_REQUEST.current_stats.likes,         pct: false },
+                comments: { value: DEMO_ANALYZE_REQUEST.current_stats.comments,      pct: false },
+                shares:   { value: DEMO_ANALYZE_REQUEST.current_stats.shares,        pct: false },
+                'ret. %': { value: DEMO_ANALYZE_REQUEST.current_stats.retention_pct, pct: true  },
+              }
+          return (
+            <div className="grid grid-cols-5 gap-1.5">
+              {Object.entries(stats).map(([label, { value, pct }]) => (
+                <div key={label} className="bg-white/4 rounded-xl p-2 text-center flex flex-col gap-1">
+                  <p className="text-[10px] font-medium text-gray-500 capitalize leading-tight">{label}</p>
+                  <p className="text-sm font-bold text-gray-100 tabular-nums leading-tight">
+                    {pct ? `${value.toFixed(1)}%` : formatNumber(value)}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        })()}
         {selectedVideo && (
-          <p className="text-[10px] text-gray-600 mt-2">
-            retention % estimated from engagement signals (likes, comments, shares)
+          <p className="text-[10px] text-gray-600 mt-2 leading-snug">
+            ret. % estimated from engagement signals
           </p>
         )}
       </div>
 
-      {/* Run button */}
+      {/* Spacer so content isn't hidden behind the fixed Run button */}
+      {step === 'form' && <div className="h-20" />}
+
+      {/* Run button — fixed above bottom nav, always visible */}
       {step === 'form' && (
-        <button
-          onClick={runAnalysis}
-          className="btn-primary flex min-h-12 items-center justify-center gap-2 text-base focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]"
-        >
-          <Play size={16} />
-          Run pipeline
-        </button>
+        <div className="fixed inset-x-4 z-40" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+          <button
+            onClick={runAnalysis}
+            className="btn-primary w-full flex min-h-14 items-center justify-center gap-2 text-base shadow-2xl focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]"
+          >
+            <Play size={18} />
+            Run pipeline
+          </button>
+        </div>
       )}
 
       {/* Agent progress */}
@@ -452,6 +573,14 @@ export function AnalyzePage() {
               )}
             </div>
 
+            {/* T+60 Forecast */}
+            {result.forecast_context && (
+              <ForecastCard
+                forecastContext={result.forecast_context}
+                currentStats={lastStats ?? {}}
+              />
+            )}
+
             {/* Z-score radar + bars */}
             <div className="card p-5 grid sm:grid-cols-2 gap-6">
               <div>
@@ -489,7 +618,7 @@ export function AnalyzePage() {
 
             {/* Run again */}
             <button
-              onClick={() => { setStep('form'); setResult(null); setAgentProgress({}) }}
+              onClick={() => { setStep('form'); setResult(null); setLastStats(null); setAgentProgress({}) }}
               className="btn-ghost flex min-h-11 items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
             >
               <RefreshCw size={14} />

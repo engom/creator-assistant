@@ -14,6 +14,7 @@ Example JSONL record (one per line):
     {
       "current_stats": "views=12400 likes=890 comments=134 shares=67 retention=38%",
       "historical_baseline": "avg_views=8900 avg_likes=610 avg_comments=88 avg_shares=41 avg_retention=31%",
+      "forecast_context": "",
       "insight": "Your engagement rate at T+45 is 2.4× your 30-day average.",
       "urgency": "high",
       "recommended_action": "Cross-post to Instagram Reels — awaiting your approval."
@@ -36,7 +37,7 @@ from loguru import logger
 
 _AGENT_CONFIG: dict[str, dict] = {
     "insight-agent": {
-        "input_keys": ("current_stats", "historical_baseline"),
+        "input_keys": ("current_stats", "historical_baseline", "forecast_context"),
         "metric": "insight_correct",
         "build_program": "omicron_agent_kit.agents.insight_agent.InsightAgent.build_program",
     },

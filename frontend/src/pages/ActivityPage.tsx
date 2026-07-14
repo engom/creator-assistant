@@ -9,19 +9,18 @@ import { DEMO_CREATORS } from '@/data/demo'
 
 // Simulated checkpoint timeline per creator
 const DEMO_CHECKPOINTS = {
-  creator_mia_chen: [
-    { offset_min: 30, views: 18000, likes: 1200, shares: 180, baseline_views: 12600 },
-    { offset_min: 45, views: 38000, likes: 2900, shares: 420, baseline_views: 18900 },
-    { offset_min: 60, views: 62000, likes: 4700, shares: 680, baseline_views: 28350 },
-    { offset_min: 90, views: 76000, likes: 5800, shares: 870, baseline_views: 37800 },
+  eurafricanews: [
+    { offset_min: 30, views: 24000, likes: 1800, shares: 210, baseline_views: 16000 },
+    { offset_min: 45, views: 51000, likes: 3900, shares: 560, baseline_views: 24000 },
+    { offset_min: 60, views: 83000, likes: 6300, shares: 910, baseline_views: 32000 },
+    { offset_min: 90, views: 104000, likes: 7900, shares: 1150, baseline_views: 42000 },
   ],
-  creator_jake_vis: [
-    { offset_min: 30, views: 8200, likes: 540, shares: 38, baseline_views: 5400 },
-    { offset_min: 45, views: 14000, likes: 980, shares: 65, baseline_views: 8100 },
-    { offset_min: 60, views: 20000, likes: 1400, shares: 72, baseline_views: 10800 },
-    { offset_min: 90, views: 24500, likes: 1780, shares: 82, baseline_views: 14400 },
+  elpanthio: [
+    { offset_min: 30, views: 9500, likes: 680, shares: 48, baseline_views: 6300 },
+    { offset_min: 45, views: 16000, likes: 1180, shares: 72, baseline_views: 9450 },
+    { offset_min: 60, views: 24000, likes: 1740, shares: 88, baseline_views: 12600 },
+    { offset_min: 90, views: 29000, likes: 2100, shares: 98, baseline_views: 16800 },
   ],
-  creator_sara_world: [],
 }
 
 export function ActivityPage() {
@@ -96,19 +95,19 @@ export function ActivityPage() {
 
       {/* Checkpoint chart */}
       {checkpoints.length > 0 ? (
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="card p-5 overflow-hidden">
+          <div className="flex items-center gap-2 mb-3">
             <Activity size={14} className="text-brand-400" />
             <p className="text-sm font-semibold text-gray-300">View velocity over time</p>
             <span className="ml-auto text-xs text-gray-600">Latest active post</span>
           </div>
           <CheckpointChart data={checkpoints} />
-          <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
+          <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-0.5 bg-brand-500 rounded" /> Current
+              <span className="w-3 h-0.5 bg-brand-500 inline-block rounded" /> Current
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-0.5 bg-white/20 rounded" style={{ borderTop: '1px dashed' }} /> Baseline
+              <span className="w-3 h-0.5 bg-white/20 inline-block rounded" style={{ borderTop: '1px dashed' }} /> Baseline
             </span>
           </div>
         </div>

@@ -80,8 +80,8 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 export function CheckpointChart({ data, className }: CheckpointChartProps) {
   return (
-    <div className={cn('w-full', className)}>
-      <ResponsiveContainer width="100%" height={160}>
+    <div className={cn('w-full', className)} style={{ height: 160 }}>
+      <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="views-grad" x1="0" y1="0" x2="0" y2="1">

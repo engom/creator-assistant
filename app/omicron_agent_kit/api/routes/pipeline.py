@@ -132,6 +132,9 @@ async def analyze_post(
         "signal": analytics_output.get("signal", ""),
         "current_stats": analytics_output.get("current_stats_str", ""),
         "historical_baseline": analytics_output.get("historical_baseline_str", ""),
+        # Raw dicts let the forecaster skip string re-parsing
+        "current_stats_dict": analytics_output.get("current_stats_dict"),
+        "historical_baseline_dict": analytics_output.get("historical_baseline_dict"),
     }
 
     insight_output: dict
@@ -180,6 +183,7 @@ async def analyze_post(
         insight=insight_output.get("insight", ""),
         urgency=insight_output.get("urgency", "low"),
         recommended_action=insight_output.get("recommended_action", ""),
+        forecast_context=insight_output.get("forecast_context", ""),
         notification_dispatched=notification_output.get("dispatched", False),
         trace_ids=trace_ids,
         total_latency_ms=round(total_latency_ms, 2),

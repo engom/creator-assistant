@@ -15,7 +15,7 @@ interface AppState {
 }
 
 const state: AppState = {
-  apiKey: localStorage.getItem('omicron_api_key') ?? '',
+  apiKey: localStorage.getItem('omicron_api_key') ?? 'test-key',
   notifications: [...DEMO_NOTIFICATIONS],
   creators: [...DEMO_CREATORS],
   activeCreatorId: DEMO_CREATORS[0].id,
