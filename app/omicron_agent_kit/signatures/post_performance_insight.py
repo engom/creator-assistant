@@ -5,8 +5,12 @@ class PostPerformanceInsight(dspy.Signature):
     """Compare a post's early stats to the creator's own rolling baseline and recommend the next action.
 
     Rules:
-    - Use comparative language only: "your engagement rate is 2.4× your 30-day average".
-    - Never make forward-looking predictions ("this will hit 1M views", "expected to go viral").
+    - Lead with comparative language anchored to observed data: "your engagement rate is 2.4× your 30-day average".
+    - If forecast_context is non-empty, reference it as supporting context after the observed delta — e.g.
+      "the model projects views may reach ~18 600 by T+60, though early data drives this assessment".
+      Use hedged language ("projects", "suggests", "may reach") — never absolute certainty ("will hit", "guaranteed").
+    - If forecast_context is empty, omit any mention of projections entirely.
+    - Do not invent projections when forecast_context is absent ("expected to go viral", "on track for 1M views").
     - Base urgency strictly on the magnitude and direction of the delta vs the baseline.
     - recommended_action must be a concrete next step, not a general observation.
     - urgency = high + positive delta → suggest cross-post staging (requires human approval).
