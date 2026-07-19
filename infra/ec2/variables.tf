@@ -100,3 +100,9 @@ variable "secret_tiktok_redirect_uri" {
   sensitive   = true
   default     = "https://api.omicron-ailabs.com/auth/tiktok/callback"
 }
+
+variable "cors_origins" {
+  description = "Comma-separated CORS origins allowed by the API (CORS_ORIGINS env var)."
+  type        = string
+  default     = "http://localhost:5173,http://localhost:3000,https://api.omicron-ailabs.com"
+}

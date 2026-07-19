@@ -60,6 +60,7 @@ TIKTOK_CLIENT_SECRET=$(get_ssm /pubiq/TIKTOK_CLIENT_SECRET)
 TIKTOK_REDIRECT_URI=$(get_ssm /pubiq/TIKTOK_REDIRECT_URI)
 JWT_SECRET=$(get_ssm /pubiq/JWT_SECRET)
 API_KEYS=$(get_ssm /pubiq/API_KEYS)
+CORS_ORIGINS=$(get_ssm /pubiq/CORS_ORIGINS)
 # ANTHROPIC_API_KEY intentionally omitted — LLM_MODEL=bedrock/* uses the EC2
 # instance role for inference; no API key is needed.
 
@@ -76,6 +77,7 @@ TIKTOK_CLIENT_SECRET=__TIKTOK_CLIENT_SECRET__
 TIKTOK_REDIRECT_URI=__TIKTOK_REDIRECT_URI__
 JWT_SECRET=__JWT_SECRET__
 API_KEYS=__API_KEYS__
+CORS_ORIGINS=__CORS_ORIGINS__
 LLM_MODEL=${llm_model}
 DATABASE_URL=postgresql://__POSTGRES_USER__:__POSTGRES_PASSWORD__@postgres:5432/__POSTGRES_DB__
 DBOS_SYSTEM_DATABASE_URL=postgresql://__POSTGRES_USER__:__POSTGRES_PASSWORD__@postgres:5432/__POSTGRES_DB__
@@ -89,6 +91,7 @@ sed -i \
   -e "s|__TIKTOK_REDIRECT_URI__|$TIKTOK_REDIRECT_URI|g" \
   -e "s|__JWT_SECRET__|$JWT_SECRET|g" \
   -e "s|__API_KEYS__|$API_KEYS|g" \
+  -e "s|__CORS_ORIGINS__|$CORS_ORIGINS|g" \
   "$APP_DIR/.env"
 chmod 600 "$APP_DIR/.env"
 

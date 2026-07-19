@@ -232,6 +232,14 @@ resource "aws_ssm_parameter" "tiktok_redirect_uri" {
   lifecycle { ignore_changes = [value] }
 }
 
+resource "aws_ssm_parameter" "cors_origins" {
+  name  = "/pubiq/CORS_ORIGINS"
+  type  = "String"
+  value = var.cors_origins
+  overwrite = true
+  lifecycle { ignore_changes = [value] }
+}
+
 # ---------------------------------------------------------------------------
 # EC2 instance — t4g.small (Graviton2, arm64, 2 vCPU / 2 GB RAM)
 # ---------------------------------------------------------------------------
