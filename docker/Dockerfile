@@ -13,8 +13,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY app/ app/
 
-# Install all deps; --no-dev excludes the [dev] optional group.
-RUN uv sync --frozen --no-dev
+# Install all deps including bedrock (boto3) extra; --no-dev excludes test/lint tools.
+RUN uv sync --frozen --no-dev --extra bedrock
 
 EXPOSE 8000
 

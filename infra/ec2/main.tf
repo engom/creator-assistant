@@ -146,8 +146,13 @@ data "aws_iam_policy_document" "ssm_params" {
   }
   statement {
     # Bedrock inference — LLM_MODEL=bedrock/... uses the instance role, no API key needed.
-    actions   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-    resources = ["arn:aws:bedrock:*::foundation-model/*"]
+    # foundation-model/* covers direct model IDs; inference-profile/* covers cross-region
+    # profiles (eu.*, global.*) which are required for newer Claude models.
+    actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+    resources = [
+      "arn:aws:bedrock:*::foundation-model/*",
+      "arn:aws:bedrock:*:*:inference-profile/*",
+    ]
   }
 }
 
