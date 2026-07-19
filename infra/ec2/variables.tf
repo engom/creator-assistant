@@ -34,6 +34,12 @@ variable "app_repo" {
   default     = "https://github.com/engom/creator-assistant.git"
 }
 
+variable "llm_model" {
+  description = "LiteLLM-style model string written into .env on the instance."
+  type        = string
+  default     = "bedrock/global.anthropic.claude-sonnet-4-6"
+}
+
 # ---------------------------------------------------------------------------
 # Secrets — never set real values here; override at apply time or post-apply
 # via the AWS console/CLI. The lifecycle { ignore_changes = [value] } blocks

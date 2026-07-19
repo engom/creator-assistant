@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.80"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.0"
+    }
   }
 
   backend "s3" {
@@ -241,6 +245,7 @@ resource "aws_instance" "api" {
     domain         = var.domain_name
     aws_region     = var.aws_region
     app_repo       = var.app_repo
+    llm_model      = var.llm_model
   })
 
   user_data_replace_on_change = false  # Don't auto-replace on config drift; redeploy intentionally.
@@ -284,4 +289,105 @@ resource "aws_route53_record" "api" {
   type    = "A"
   ttl     = 60
   records = [aws_eip.api.public_ip]
+}
+
+# ---------------------------------------------------------------------------
+# deployment_notes.md — auto-generated at the repo root on every apply.
+# Never edit the file manually; change the template below instead.
+# ---------------------------------------------------------------------------
+resource "local_file" "deployment_notes" {
+  filename        = "${path.module}/../../deployment_notes.md"
+  file_permission = "0644"
+  content         = <<-EOT
+    # Pub-IQ Deployment Notes
+
+    ## Live infrastructure (eu-west-3, Paris)
+
+    | Resource     | Value                                                    |
+    |--------------|----------------------------------------------------------|
+    | EC2 instance | `${aws_instance.api.id}` (${var.instance_type}, Ubuntu 24.04 arm64) |
+    | Elastic IP   | `${aws_eip.api.public_ip}`                               |
+    | DNS          | `api.${var.domain_name} → ${aws_eip.api.public_ip}`      |
+    | API URL      | `https://api.${var.domain_name}`                         |
+    | TLS cert     | Let's Encrypt, auto-renews via certbot cron              |
+    | State bucket | `s3://pubiq-tfstate` (${var.aws_region})                 |
+    | LLM backend  | Bedrock via EC2 instance role — no API key needed        |
+
+    ## Health check
+
+    ```bash
+    curl https://api.${var.domain_name}/health
+    # {"status":"ok"}       — all good
+    # {"status":"degraded"} — LLM unreachable (check Bedrock IAM or model availability)
+    ```
+
+    ## Admin shell (no SSH — SSM Session Manager)
+
+    Install the plugin once:
+
+    ```bash
+    curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/mac_arm64/sessionmanager-bundle.zip" -o /tmp/ssm.zip && \
+    unzip -q /tmp/ssm.zip -d /tmp/ssm && \
+    sudo /tmp/ssm/sessionmanager-bundle/install -i /usr/local/sessionmanagerplugin -b /usr/local/bin/session-manager-plugin
+    ```
+
+    Connect:
+
+    ```bash
+    aws ssm start-session --target ${aws_instance.api.id} --region ${var.aws_region}
+    ```
+
+    ## Common operations
+
+    **View API logs** (inside SSM session):
+
+    ```bash
+    docker compose --project-directory /opt/pubiq -f docker/docker-compose.yml logs -f api
+    ```
+
+    **Restart the stack:**
+
+    ```bash
+    sudo systemctl restart pubiq
+    ```
+
+    **Update a secret without redeploying:**
+
+    ```bash
+    aws ssm put-parameter --name /pubiq/<NAME> \
+      --type SecureString --value "..." \
+      --region ${var.aws_region} --overwrite
+    ```
+
+    Note: `systemctl restart` does NOT re-fetch SSM — secrets are written to `.env` only during
+    initial boot. To apply a rotated secret, replace the instance (see Redeploy below).
+
+    ## Redeploy (replace instance, re-runs full cloud-init)
+
+    ```bash
+    cd infra/ec2
+    terraform taint aws_instance.api
+    terraform apply -auto-approve
+    ```
+
+    Cloud-init runs fully unattended (~10 min): installs Docker + AWS CLI v2, clones repo,
+    fetches secrets from SSM, applies DB schema, obtains TLS cert via Route53 DNS-01, starts
+    the stack. LLM calls use the instance role — no API key required.
+
+    ## Terraform state
+
+    ```bash
+    cd infra/ec2
+    terraform show      # current state
+    terraform output    # endpoints + SSM session command
+    ```
+
+    Remote state: `s3://pubiq-tfstate/pubiq/ec2/terraform.tfstate`
+    Lock table: `pubiq-tfstate-lock` (DynamoDB, ${var.aws_region})
+
+    ## TODO
+
+    - RDS migration: Postgres runs in Docker on the EC2 instance. Data survives reboots but not
+      instance replacement. Migrate to RDS (Multi-AZ) before going beyond the early-tester phase.
+  EOT
 }

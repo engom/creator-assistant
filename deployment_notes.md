@@ -2,15 +2,15 @@
 
 ## Live infrastructure (eu-west-3, Paris)
 
-| Resource     | Value                                                  |
-|--------------|--------------------------------------------------------|
+| Resource     | Value                                                    |
+|--------------|----------------------------------------------------------|
 | EC2 instance | `i-002a4de1c32795fb0` (t4g.small, Ubuntu 24.04 arm64) |
-| Elastic IP   | `15.224.127.254`                                       |
-| DNS          | `api.omicron-ailabs.com → 15.224.127.254`              |
-| API URL      | `https://api.omicron-ailabs.com`                       |
-| TLS cert     | Let's Encrypt, expires 2026-10-17 (auto-renews)        |
-| State bucket | `s3://pubiq-tfstate` (eu-west-3)                       |
-| LLM backend  | Bedrock via EC2 instance role — no API key needed      |
+| Elastic IP   | `15.224.127.254`                               |
+| DNS          | `api.omicron-ailabs.com → 15.224.127.254`      |
+| API URL      | `https://api.omicron-ailabs.com`                         |
+| TLS cert     | Let's Encrypt, auto-renews via certbot cron              |
+| State bucket | `s3://pubiq-tfstate` (eu-west-3)                 |
+| LLM backend  | Bedrock via EC2 instance role — no API key needed        |
 
 ## Health check
 
@@ -58,7 +58,8 @@ aws ssm put-parameter --name /pubiq/<NAME> \
   --region eu-west-3 --overwrite
 ```
 
-Note: `systemctl restart` does NOT re-fetch SSM — secrets are written to `.env` only during initial boot. To apply a rotated secret, replace the instance (see Redeploy below).
+Note: `systemctl restart` does NOT re-fetch SSM — secrets are written to `.env` only during
+initial boot. To apply a rotated secret, replace the instance (see Redeploy below).
 
 ## Redeploy (replace instance, re-runs full cloud-init)
 
@@ -68,7 +69,9 @@ terraform taint aws_instance.api
 terraform apply -auto-approve
 ```
 
-Cloud-init runs fully unattended (~10 min): installs Docker + AWS CLI v2, clones repo, fetches secrets from SSM, applies DB schema, obtains TLS cert via Route53 DNS-01, starts the stack. LLM calls use the instance role — no API key required.
+Cloud-init runs fully unattended (~10 min): installs Docker + AWS CLI v2, clones repo,
+fetches secrets from SSM, applies DB schema, obtains TLS cert via Route53 DNS-01, starts
+the stack. LLM calls use the instance role — no API key required.
 
 ## Terraform state
 
@@ -83,4 +86,5 @@ Lock table: `pubiq-tfstate-lock` (DynamoDB, eu-west-3)
 
 ## TODO
 
-- RDS migration: Postgres runs in Docker on the EC2 instance. Data survives reboots but not instance replacement. Migrate to RDS (Multi-AZ) before going beyond the early-tester phase.
+- RDS migration: Postgres runs in Docker on the EC2 instance. Data survives reboots but not
+  instance replacement. Migrate to RDS (Multi-AZ) before going beyond the early-tester phase.
