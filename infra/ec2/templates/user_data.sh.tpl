@@ -12,9 +12,15 @@ echo "=== Pub-IQ boot: $(date -u) ==="
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg lsb-release \
+    ca-certificates curl gnupg lsb-release unzip \
     nginx certbot python3-certbot-dns-route53 \
-    awscli git
+    git
+
+# AWS CLI v2 — not in Ubuntu 24.04 apt repos, install official arm64 binary
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2
+/tmp/awscliv2/aws/install
+rm -rf /tmp/awscliv2 /tmp/awscliv2.zip
 
 # ---------------------------------------------------------------------------
 # 2. Docker CE + Compose plugin (arm64)
