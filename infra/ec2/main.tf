@@ -35,7 +35,7 @@ provider "aws" {
 # Avoids hardcoded AMI IDs that go stale per region.
 # ---------------------------------------------------------------------------
 data "aws_ssm_parameter" "ubuntu_ami" {
-  name = "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp2/ami-id"
+  name = "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id"
 }
 
 # ---------------------------------------------------------------------------
@@ -163,6 +163,7 @@ resource "aws_ssm_parameter" "postgres_user" {
   name  = "/pubiq/POSTGRES_USER"
   type  = "SecureString"
   value = var.secret_postgres_user
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -170,6 +171,7 @@ resource "aws_ssm_parameter" "postgres_password" {
   name  = "/pubiq/POSTGRES_PASSWORD"
   type  = "SecureString"
   value = var.secret_postgres_password
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -177,6 +179,7 @@ resource "aws_ssm_parameter" "postgres_db" {
   name  = "/pubiq/POSTGRES_DB"
   type  = "SecureString"
   value = var.secret_postgres_db
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -184,6 +187,7 @@ resource "aws_ssm_parameter" "tiktok_client_id" {
   name  = "/pubiq/TIKTOK_CLIENT_ID"
   type  = "SecureString"
   value = var.secret_tiktok_client_id
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -191,6 +195,7 @@ resource "aws_ssm_parameter" "tiktok_client_secret" {
   name  = "/pubiq/TIKTOK_CLIENT_SECRET"
   type  = "SecureString"
   value = var.secret_tiktok_client_secret
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -198,6 +203,7 @@ resource "aws_ssm_parameter" "anthropic_api_key" {
   name  = "/pubiq/ANTHROPIC_API_KEY"
   type  = "SecureString"
   value = var.secret_anthropic_api_key
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -205,6 +211,7 @@ resource "aws_ssm_parameter" "jwt_secret" {
   name  = "/pubiq/JWT_SECRET"
   type  = "SecureString"
   value = var.secret_jwt_secret
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
@@ -212,6 +219,7 @@ resource "aws_ssm_parameter" "api_keys" {
   name  = "/pubiq/API_KEYS"
   type  = "SecureString"
   value = var.secret_api_keys
+  overwrite = true
   lifecycle { ignore_changes = [value] }
 }
 
