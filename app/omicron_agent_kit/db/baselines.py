@@ -13,8 +13,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-import asyncpg
-
 from omicron_agent_kit.db.connection import get_pool
 from omicron_agent_kit.stats import STAT_NAMES as _STAT_NAMES
 
@@ -65,41 +63,30 @@ async def update_baseline(
     stats: dict[str, float],
 ) -> None:
     """Welford-update the baseline for each stat in the provided dict."""
+    rows = [
+        (creator_id, platform, stat_name, float(stats[stat_name]))
+        for stat_name in _STAT_NAMES
+        if stats.get(stat_name) is not None
+    ]
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
-            for stat_name in _STAT_NAMES:
-                value = stats.get(stat_name)
-                if value is None:
-                    continue
-                await _welford_upsert(conn, creator_id, platform, stat_name, float(value))
+            await conn.executemany(
+                """
+                INSERT INTO creator_baselines (creator_id, platform, stat_name, count, mean, m2, updated_at)
+                VALUES ($1, $2, $3, 1, $4, 0.0, now())
+                ON CONFLICT (creator_id, platform, stat_name)
+                DO UPDATE SET
+                    count = creator_baselines.count + 1,
+                    mean = creator_baselines.mean
+                           + ($4 - creator_baselines.mean) / (creator_baselines.count + 1),
+                    m2 = creator_baselines.m2
+                         + ($4 - creator_baselines.mean)
+                           * ($4 - (creator_baselines.mean
+                                    + ($4 - creator_baselines.mean) / (creator_baselines.count + 1))),
+                    updated_at = now()
+                """,
+                rows,
+            )
 
 
-async def _welford_upsert(
-    conn: asyncpg.Connection,
-    creator_id: str,
-    platform: str,
-    stat_name: str,
-    value: float,
-) -> None:
-    """Insert or Welford-update a single stat row."""
-    await conn.execute(
-        """
-        INSERT INTO creator_baselines (creator_id, platform, stat_name, count, mean, m2, updated_at)
-        VALUES ($1, $2, $3, 1, $4, 0.0, now())
-        ON CONFLICT (creator_id, platform, stat_name)
-        DO UPDATE SET
-            count = creator_baselines.count + 1,
-            mean = creator_baselines.mean
-                   + ($4 - creator_baselines.mean) / (creator_baselines.count + 1),
-            m2 = creator_baselines.m2
-                 + ($4 - creator_baselines.mean)
-                   * ($4 - (creator_baselines.mean
-                            + ($4 - creator_baselines.mean) / (creator_baselines.count + 1))),
-            updated_at = now()
-        """,
-        creator_id,
-        platform,
-        stat_name,
-        value,
-    )

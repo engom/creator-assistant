@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, memo } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, genId } from '@/lib/utils'
 import { X, Bell, CheckCircle, AlertTriangle, Info } from 'lucide-react'
 
 export type ToastType = 'success' | 'warning' | 'error' | 'info'
@@ -15,9 +15,7 @@ export interface ToastItem {
 
 const toastListeners = new Set<(t: ToastItem) => void>()
 
-export function genId(): string {
-  return crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-}
+export { genId } from '@/lib/utils'
 
 export function toast(item: Omit<ToastItem, 'id'>) {
   const t: ToastItem = { ...item, id: genId() }

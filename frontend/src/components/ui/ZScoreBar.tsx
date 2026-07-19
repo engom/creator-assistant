@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils'
-import { zScoreBar, zScoreLabel } from '@/lib/utils'
+import { cn, zScoreBar, zScoreLabel } from '@/lib/utils'
 
 interface ZScoreRowProps {
   label: string

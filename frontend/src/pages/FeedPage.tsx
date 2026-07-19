@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { ArrowUpRight, Check, ChevronRight, Flame, MessageCircle, Play, Send, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { store, useAppStore } from '@/store/app'
 import { cn, formatNumber, timeAgo } from '@/lib/utils'
 import type { Notification } from '@/api/types'
@@ -57,6 +57,10 @@ export function FeedPage() {
   const pulse = available.find((item) => item.signal === 'above_baseline') ?? available[0]
   const pending = available.filter((item) => item.recommended_action && !item.approved)
   const unread = available.filter((item) => !item.read).length
+  const greeting = useMemo(() => {
+    const h = new Date().getHours()
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
+  }, [])
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 animate-fade-in pb-4">
@@ -64,7 +68,7 @@ export function FeedPage() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-400"><span className="live-dot" /> 15-minute pulse</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-100">{(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening' })()}, creator.</h1>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-100">{greeting}, creator.</h1>
           </div>
           {unread > 0 && <span className="rounded-full border border-orange-400/25 bg-orange-400/10 px-2.5 py-1 text-xs font-semibold text-orange-300">{unread} need attention</span>}
         </div>
@@ -76,7 +80,7 @@ export function FeedPage() {
           {creators.filter((creator) => creator.authorized).map((creator) => (
             <button
               key={creator.id}
-              onClick={() => { setActiveCreator(creator.id); store.setActiveCreator(creator.id) }}
+              onClick={() => setActiveCreator(creator.id)}
               className={cn('flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]', activeCreator === creator.id ? 'border-brand-400/40 bg-brand-500/15 text-brand-200' : 'border-surface-dark-border bg-white/[.03] text-gray-500 hover:text-gray-300')}
             >
               <span className="grid h-4 w-4 place-items-center rounded-full bg-gradient-to-br from-brand-400 to-brand-700 text-[8px] font-bold text-white">{creator.handle.slice(1, 2).toUpperCase()}</span>

@@ -16,3 +16,11 @@ STAT_DISPLAY_ALIASES: dict[str, str] = {
     "retention_pct": "retention",
     "avg_retention_pct": "avg_retention",
 }
+
+# Checkpoint offsets in minutes, aligned with TikTok's algorithm window.
+# Used by both the monitoring agent and the durable Pub-IQ workflow.
+CHECKPOINT_OFFSETS_MIN: tuple[int, ...] = (30, 45, 60, 90)
+
+# Subset used by the durable workflow (T+30, T+60, T+90 only — T+45 is
+# handled by the adaptive poller, not by DBOS checkpoints).
+WORKFLOW_CHECKPOINT_OFFSETS_MIN: tuple[int, ...] = (30, 60, 90)

@@ -101,7 +101,8 @@ async def tiktok_callback(code: str, state: str, request: Request) -> HTMLRespon
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="TikTok credentials not configured.")
 
     try:
-        token_data = exchange_code_for_tokens(
+        token_data = await asyncio.to_thread(
+            exchange_code_for_tokens,
             client_id=settings.tiktok_client_id,
             client_secret=settings.tiktok_client_secret,
             code=code,

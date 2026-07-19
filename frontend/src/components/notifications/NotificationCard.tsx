@@ -4,7 +4,7 @@ import {
   ChevronDown, ChevronUp, Check, Share2, MessageSquare,
   TrendingUp, TrendingDown, Minus, Clock, Zap,
 } from 'lucide-react'
-import { cn, timeAgo, formatNumber, formatPercent, signalBg, platformIcon } from '@/lib/utils'
+import { cn, timeAgo, formatNumber, formatPercent, signalBg, signalLabel, platformIcon } from '@/lib/utils'
 import { ZScorePanel } from '@/components/ui/ZScoreBar'
 import { store, useAppStore } from '@/store/app'
 import type { Notification } from '@/api/types'
@@ -91,14 +91,12 @@ export function NotificationCard({ notification: n, onClick }: NotificationCardP
                 className="text-[12px] text-gray-500 truncate max-w-[150px]"
                 title={n.post_title || n.post_id}
               >
-                {n.post_title
-                  ? (n.post_title.length > 36 ? n.post_title.slice(0, 36) + '…' : n.post_title)
-                  : n.post_id}
+                {n.post_title || n.post_id}
               </span>
               <div className="ml-auto flex items-center gap-1.5 shrink-0">
                 <span className={cn('badge border', signalBg(n.signal))}>
                   <SignalIcon signal={n.signal} />
-                  {n.signal.replace(/_/g, ' ')}
+                  {signalLabel(n.signal)}
                 </span>
               </div>
             </div>

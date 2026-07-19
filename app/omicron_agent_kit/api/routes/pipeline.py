@@ -40,20 +40,33 @@ async def analyze_post(
     # Closure: write an error audit record for the named agent stage.
     # Preserves the actual inputs that caused the failure for post-mortem.
     # ------------------------------------------------------------------
-    async def _audit_error(
-        agent_name: str, error_name: str, latency_ms: float, inputs: dict | None = None
-    ) -> None:
+    async def _write_audit(
+        agent_name: str,
+        inputs: dict,
+        output: dict,
+        latency_ms: float,
+        audit_status: str = "success",
+    ) -> str:
         tid = await asyncio.to_thread(
             audit.log,
             tenant_id=tenant_id,
             agent=agent_name,
-            input_payload=inputs or {},
-            output_payload={"error": error_name},
+            input_payload=inputs,
+            output_payload=output,
             latency_ms=latency_ms,
             model=settings.llm_model,
-            status="error",
+            status=audit_status,
         )
         trace_ids[agent_name] = tid
+        return tid
+
+    # ------------------------------------------------------------------
+    # Closure: write an error audit record for the named agent stage.
+    # ------------------------------------------------------------------
+    async def _audit_error(
+        agent_name: str, error_name: str, latency_ms: float, inputs: dict | None = None
+    ) -> None:
+        await _write_audit(agent_name, inputs or {}, {"error": error_name}, latency_ms, "error")
 
     # ------------------------------------------------------------------
     # Helper: run one agent, audit it, return its output dict.
@@ -78,16 +91,7 @@ async def analyze_post(
             await _audit_error(agent_name, type(exc).__name__, round(wall_ms, 2), inputs)
             raise
         wall_ms = (time.perf_counter() - t0) * 1000
-        tid = await asyncio.to_thread(
-            audit.log,
-            tenant_id=tenant_id,
-            agent=agent_name,
-            input_payload=inputs,
-            output_payload=result.output,
-            latency_ms=wall_ms,
-            model=settings.llm_model,
-        )
-        trace_ids[agent_name] = tid
+        tid = await _write_audit(agent_name, inputs, result.output, wall_ms)
         logger.info(
             "Pipeline stage {agent} completed in {ms:.1f} ms (trace={tid})",
             agent=agent_name,

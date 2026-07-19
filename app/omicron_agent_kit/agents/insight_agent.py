@@ -18,17 +18,25 @@ Optional:
                          injected into the DSPy prompt as forecast_context
 """
 
+from collections import OrderedDict
+
 import dspy
 
 from omicron_agent_kit.agents.base import BaseAgent
+from omicron_agent_kit.api.schemas import InsightAgentInput
 from omicron_agent_kit.ml.forecast import PostPerformanceForecast
 from omicron_agent_kit.signatures.post_performance_insight import PostPerformanceInsight
+
+_FORECAST_CACHE_MAX = 128
+# Bounded LRU cache: (post_id, n_checkpoints) → forecast context string.
+_forecast_cache: OrderedDict[tuple[str, int], str] = OrderedDict()
 
 
 class InsightAgent(BaseAgent):
     """Turn early post stats vs rolling baseline into a grounded insight, urgency, and recommended action."""
 
     name = "insight-agent"
+    input_schema = InsightAgentInput
 
     @staticmethod
     def build_program() -> dspy.ChainOfThought:
@@ -47,12 +55,22 @@ class InsightAgent(BaseAgent):
         if not historical_baseline:
             raise ValueError("historical_baseline is required")
 
-        forecast_context = _build_forecast_context(
-            current_stats=inputs.get("current_stats_dict") or current_stats,
-            historical_baseline=inputs.get("historical_baseline_dict") or historical_baseline,
-            checkpoint_history=inputs.get("checkpoint_history") or [],
-            signal=inputs.get("signal") or "within_baseline",
-        )
+        checkpoint_history = inputs.get("checkpoint_history") or []
+        post_id = inputs.get("post_id") or ""
+        n = len(checkpoint_history)
+        cache_key = (post_id, n)
+        if cache_key in _forecast_cache:
+            _forecast_cache.move_to_end(cache_key)
+        else:
+            _forecast_cache[cache_key] = _build_forecast_context(
+                current_stats=inputs.get("current_stats_dict") or current_stats,
+                historical_baseline=inputs.get("historical_baseline_dict") or historical_baseline,
+                checkpoint_history=checkpoint_history,
+                signal=inputs.get("signal") or "within_baseline",
+            )
+            if len(_forecast_cache) > _FORECAST_CACHE_MAX:
+                _forecast_cache.popitem(last=False)
+        forecast_context = _forecast_cache[cache_key]
 
         prediction = self._program(
             current_stats=current_stats,

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Key, Eye, EyeOff, CheckCircle, ExternalLink, Shield, AlertTriangle, Copy, Globe2, Terminal, Link2, Check, HelpCircle } from 'lucide-react'
-import { store } from '@/store/app'
-import { useAppStore } from '@/store/app'
+import { store, useAppStore } from '@/store/app'
 import { api } from '@/api/client'
 import { toast } from '@/components/ui/Toast'
 import { Badge } from '@/components/ui/Badge'

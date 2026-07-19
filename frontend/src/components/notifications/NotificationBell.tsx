@@ -9,7 +9,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const notifications = useAppStore((s) => s.notifications)
-  const unread = notifications.filter((n) => !n.read).length
+  const unread = useAppStore((s) => s.notifications.filter((n) => !n.read).length)
 
   useEffect(() => {
     function handler(e: MouseEvent) {

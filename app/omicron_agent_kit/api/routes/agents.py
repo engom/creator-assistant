@@ -1,8 +1,10 @@
 import asyncio
 import time
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
+from pydantic import ValidationError
 
 from omicron_agent_kit.agents.analytics_agent import AnalyticsAgent
 from omicron_agent_kit.agents.base import BaseAgent
@@ -128,6 +130,13 @@ async def invoke_agent(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Agent timed out.",
         ) from exc
+    except ValidationError as exc:
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        await _audit_error("ValidationError", round(elapsed_ms, 2))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid input for {agent_name}: {exc}",
+        ) from exc
     except Exception as exc:
         elapsed_ms = (time.perf_counter() - t0) * 1000
         logger.exception(
@@ -139,13 +148,15 @@ async def invoke_agent(
             detail="Agent invocation failed.",
         ) from exc
 
-    trace_id = await asyncio.to_thread(
+    trace_id = str(uuid.uuid4())
+    await asyncio.to_thread(
         audit.log,
         tenant_id=tenant_id,
         agent=agent_name,
         input_payload=body.input,
         output_payload=result.output,
         latency_ms=result.latency_ms,
+        trace_id=trace_id,
         model=settings.llm_model,
     )
 

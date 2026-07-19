@@ -25,6 +25,7 @@ Optional:
 from collections.abc import Callable
 
 from omicron_agent_kit.agents.base import BaseAgent
+from omicron_agent_kit.api.schemas import NotificationAgentInput
 
 
 def _noop_dispatch(channel: str, message: str) -> dict:
@@ -36,6 +37,7 @@ class NotificationAgent(BaseAgent):
     """Route creator performance alerts based on urgency level (low → no-op, medium/high → notify)."""
 
     name = "notification-agent"
+    input_schema = NotificationAgentInput
 
     def __init__(self, dispatch: Callable[[str, str], dict] | None = None):
         self._dispatch = dispatch or _noop_dispatch

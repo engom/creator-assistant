@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from omicron_agent_kit.stats import CHECKPOINT_OFFSETS_MIN as _CHECKPOINT_OFFSETS_MIN
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -26,9 +28,6 @@ TIKTOK_AUTH_BASE = "https://www.tiktok.com/v2/auth/authorize/"
 TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 
 _DEFAULT_SCOPES = ["user.info.basic", "video.list"]
-
-# Checkpoint offsets in minutes, aligned with TikTok's algorithm window.
-_CHECKPOINT_OFFSETS_MIN = [30, 45, 60, 90]
 
 # Tolerance window (seconds) for is_checkpoint
 _CHECKPOINT_TOLERANCE_S = 60
@@ -107,7 +106,7 @@ def estimate_retention_pct(
     return round(min(weighted * 4.5 * 100, 95.0), 1)
 
 
-def _check_tiktok_error(body: dict) -> None:
+def _check_tiktok_error(body: dict, prefix: str = "TikTok API error") -> None:
     """Raise RuntimeError if the TikTok response body signals an API error.
 
     Handles both dict-shaped errors ({"code": "...", "message": "..."}) and
@@ -118,9 +117,9 @@ def _check_tiktok_error(body: dict) -> None:
         return
     if isinstance(err, dict):
         if err.get("code", "ok") != "ok":
-            raise RuntimeError(f"TikTok API error: {err}")
+            raise RuntimeError(f"{prefix}: {err}")
     else:
-        raise RuntimeError(f"TikTok API error: {err}")
+        raise RuntimeError(f"{prefix}: {err}")
 
 
 def build_authorization_url(
@@ -152,6 +151,20 @@ def build_authorization_url(
     return f"{TIKTOK_AUTH_BASE}?{urllib.parse.urlencode(params)}"
 
 
+def _post_token_request(data: dict, err_prefix: str) -> dict:
+    """POST form-encoded data to TIKTOK_TOKEN_URL; raise on HTTP or API errors."""
+    resp = httpx.post(
+        TIKTOK_TOKEN_URL,
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    body = resp.json()
+    _check_tiktok_error(body, prefix=err_prefix)
+    return body
+
+
 def exchange_code_for_tokens(
     client_id: str,
     client_secret: str,
@@ -167,9 +180,8 @@ def exchange_code_for_tokens(
     Requires the Display API product (no audit needed).
     Register at https://developers.tiktok.com and add the Display API product.
     """
-    resp = httpx.post(
-        TIKTOK_TOKEN_URL,
-        data={
+    return _post_token_request(
+        {
             "client_key": client_id,
             "client_secret": client_secret,
             "code": code,
@@ -177,16 +189,8 @@ def exchange_code_for_tokens(
             "redirect_uri": redirect_uri,
             "code_verifier": code_verifier,
         },
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        timeout=10,
+        "TikTok token exchange failed",
     )
-    resp.raise_for_status()
-    data = resp.json()
-    if "error" in data:
-        raise RuntimeError(
-            f"TikTok token exchange failed: {data.get('error_description', data['error'])}"
-        )
-    return data
 
 
 def refresh_access_token(
@@ -199,25 +203,15 @@ def refresh_access_token(
     Returns:
         {access_token, refresh_token, expires_in, open_id}
     """
-
-    resp = httpx.post(
-        TIKTOK_TOKEN_URL,
-        data={
+    return _post_token_request(
+        {
             "client_key": client_id,
             "client_secret": client_secret,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
         },
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        timeout=10,
+        "TikTok token refresh failed",
     )
-    resp.raise_for_status()
-    data = resp.json()
-    if "error" in data:
-        raise RuntimeError(
-            f"TikTok token refresh failed: {data.get('error_description', data['error'])}"
-        )
-    return data
 
 
 # ---------------------------------------------------------------------------

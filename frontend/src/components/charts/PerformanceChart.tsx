@@ -1,9 +1,10 @@
+import { useId } from 'react'
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import type { ZScores } from '@/api/types'
-import { cn } from '@/lib/utils'
+import { cn, formatNumber, formatNumberCompact } from '@/lib/utils'
 
 // ── Radar: z-score profile per stat ──────────────────────────────────────────
 
@@ -79,12 +80,13 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export function CheckpointChart({ data, className }: CheckpointChartProps) {
+  const gradId = useId()
   return (
     <div className={cn('w-full', className)} style={{ height: 160 }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id="views-grad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3b62f6" stopOpacity={0.25} />
               <stop offset="95%" stopColor="#3b62f6" stopOpacity={0} />
             </linearGradient>
@@ -101,7 +103,7 @@ export function CheckpointChart({ data, className }: CheckpointChartProps) {
             tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'Inter' }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}
+            tickFormatter={formatNumberCompact}
             width={36}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#30363d', strokeWidth: 1 }} />
@@ -111,7 +113,7 @@ export function CheckpointChart({ data, className }: CheckpointChartProps) {
             name="Views"
             stroke="#3b62f6"
             strokeWidth={2}
-            fill="url(#views-grad)"
+            fill={`url(#${gradId})`}
             dot={{ r: 4, fill: '#3b62f6', strokeWidth: 0 }}
             activeDot={{ r: 5, fill: '#608bfa' }}
           />
@@ -172,7 +174,7 @@ export function StatBar({ label, current, baseline, max, color = '#3b62f6' }: St
         'w-14 text-right tabular-nums font-mono shrink-0',
         isAbove ? 'text-green-400' : 'text-gray-300'
       )}>
-        {current >= 1000 ? `${(current / 1000).toFixed(1)}K` : current}
+        {formatNumber(current)}
       </span>
     </div>
   )

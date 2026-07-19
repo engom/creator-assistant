@@ -21,15 +21,14 @@ Required input fields:
 """
 
 from omicron_agent_kit.agents.base import BaseAgent
+from omicron_agent_kit.api.schemas import AnalyticsAgentInput
 from omicron_agent_kit.stats import STAT_DISPLAY_ALIASES, STAT_NAMES
 
 _STAT_PAIRS = [
     (s, f"avg_{s}", f"std_{s}") for s in STAT_NAMES
 ]
 
-_STAT_DISPLAY = [
-    (s, f"avg_{s}") for s in STAT_NAMES
-]
+_STAT_DISPLAY = [(s, avg) for s, avg, _ in _STAT_PAIRS]
 
 # Display names for the formatted strings passed to DSPy prompts.
 # Identical to canonical key except for the two aliases in STAT_DISPLAY_ALIASES.
@@ -51,6 +50,7 @@ class AnalyticsAgent(BaseAgent):
     """Compute z-scores for a post's early stats against the creator's own rolling baseline."""
 
     name = "analytics-agent"
+    input_schema = AnalyticsAgentInput
 
     def _run(self, inputs: dict) -> dict:
         creator_id = inputs.get("creator_id")
@@ -91,7 +91,7 @@ class AnalyticsAgent(BaseAgent):
             signal = "within_baseline"
 
         def _fmt_val(key: str, val) -> str:
-            if key in ("retention_pct", "avg_retention_pct"):
+            if key.endswith("_pct"):
                 return f"{float(val):.0f}%"
             return str(val)
 

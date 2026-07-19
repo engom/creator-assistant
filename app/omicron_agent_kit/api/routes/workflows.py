@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from omicron_agent_kit.api.auth import require_api_key
+from omicron_agent_kit.stats import WORKFLOW_CHECKPOINT_OFFSETS_MIN
 from omicron_agent_kit.workflows.pubiq import pubiq_workflow
 
 router = APIRouter(prefix="/v1/workflows", tags=["workflows"])
@@ -77,5 +78,5 @@ async def start_pubiq_workflow(
         creator_id=body.creator_id,
         post_id=body.post_id,
         platform=body.platform,
-        checkpoints=[30, 60, 90],
+        checkpoints=WORKFLOW_CHECKPOINT_OFFSETS_MIN,
     )

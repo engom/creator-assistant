@@ -63,9 +63,10 @@ class AuditLogger:
         model: str,
         status: str = "success",
         retriever_backend: str = "n/a",
+        trace_id: str | None = None,
     ) -> str:
         record = AuditRecord(
-            trace_id=str(uuid.uuid4()),
+            trace_id=trace_id or str(uuid.uuid4()),
             timestamp=datetime.now(timezone.utc).isoformat(timespec="microseconds"),
             tenant_id=tenant_id,
             agent=agent,

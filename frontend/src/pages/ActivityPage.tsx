@@ -4,7 +4,7 @@ import { Activity, RefreshCw, Server, Cpu } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { Badge } from '@/components/ui/Badge'
 import { CheckpointChart, StatBar } from '@/components/charts/PerformanceChart'
-import { cn, timeAgo, formatNumber, formatPercent, urgencyBg, signalBg } from '@/lib/utils'
+import { cn, timeAgo, formatNumber, formatPercent, urgencyBg, signalBg, signalLabel } from '@/lib/utils'
 import { DEMO_CREATORS } from '@/data/demo'
 
 // Simulated checkpoint timeline per creator
@@ -143,7 +143,7 @@ export function ActivityPage() {
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn('badge border text-xs', urgencyBg(n.urgency))}>{n.urgency}</span>
-                    <span className={cn('badge border text-xs', signalBg(n.signal))}>{n.signal.replace(/_/g, ' ')}</span>
+                    <span className={cn('badge border text-xs', signalBg(n.signal))}>{signalLabel(n.signal)}</span>
                     <span className="ml-auto text-xs text-gray-600">{timeAgo(n.received_at)}</span>
                   </div>
                   <p className="text-xs text-gray-300 leading-relaxed">{n.insight}</p>

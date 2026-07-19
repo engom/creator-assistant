@@ -9,8 +9,6 @@ class PostPerformanceInsight(dspy.Signature):
     - If forecast_context is non-empty, reference it as supporting context after the observed delta — e.g.
       "the model projects views may reach ~18 600 by T+60, though early data drives this assessment".
       Use hedged language ("projects", "suggests", "may reach") — never absolute certainty ("will hit", "guaranteed").
-    - If forecast_context is empty, omit any mention of projections entirely.
-    - Do not invent projections when forecast_context is absent ("expected to go viral", "on track for 1M views").
     - Base urgency strictly on the magnitude and direction of the delta vs the baseline.
     - recommended_action must be a concrete next step, not a general observation.
     - urgency = high + positive delta → suggest cross-post staging (requires human approval).
@@ -42,7 +40,10 @@ class PostPerformanceInsight(dspy.Signature):
     )
 
     insight: str = dspy.OutputField(
-        desc="One sentence, comparative, citing the specific stat delta. No predictions."
+        desc=(
+            "One sentence, comparative, citing the specific stat delta. "
+            "Hedged forecast reference permitted only when forecast_context is non-empty."
+        )
     )
     urgency: str = dspy.OutputField(desc="low | medium | high")
     recommended_action: str = dspy.OutputField(

@@ -8,12 +8,11 @@ import { ZScorePanel } from '@/components/ui/ZScoreBar'
 import { ZScoreRadar } from '@/components/charts/PerformanceChart'
 import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
-import { cn, signalBg, urgencyBg, formatNumber, formatPercent } from '@/lib/utils'
-import type { AnalyzePostResponse, TikTokVideo, TikTokProfile, ForecastStat } from '@/api/types'
+import { cn, signalBg, signalLabel, urgencyBg, formatNumber, formatPercent } from '@/lib/utils'
+import type { AnalyzePostResponse, TikTokVideo, TikTokProfile, ForecastStat, HistoricalBaseline } from '@/api/types'
 import { STAT_LABELS } from '@/components/ui/ZScoreBar'
-import { genId } from '@/components/ui/Toast'
+import { genId } from '@/lib/utils'
 import { DEMO_CREATORS, DEMO_ANALYZE_REQUEST } from '@/data/demo'
-import type { HistoricalBaseline } from '@/api/types'
 
 function computeBaseline(vids: TikTokVideo[]): HistoricalBaseline | null {
   if (vids.length < 3) return null
@@ -118,7 +117,7 @@ function ForecastCard({
               </div>
               <div className="w-24 shrink-0 text-right">
                 <span className="text-xs font-semibold text-gray-200 tabular-nums">
-                  {unit === 'pct' ? `${value.toFixed(1)}%` : formatNumber(value)}
+                  {unit === 'pct' ? formatPercent(value) : formatNumber(value)}
                 </span>
                 {current > 0 && (
                   <span className={cn(
@@ -240,7 +239,7 @@ export function AnalyzePage() {
       if (!cancelled) setVideosLoading(false)
     })
     return () => { cancelled = true }
-  }, [selectedCreator.id, selectedCreator.authorized])
+  }, [selectedCreator.id])
 
   async function runAnalysis() {
     setStep('running')
@@ -467,21 +466,16 @@ export function AnalyzePage() {
           {selectedVideo ? 'Live Post Stats' : 'Simulated Post Stats'}
         </p>
         {(() => {
-          const stats = selectedVideo
-            ? {
-                views:    { value: selectedVideo.view_count,    pct: false },
-                likes:    { value: selectedVideo.like_count,    pct: false },
-                comments: { value: selectedVideo.comment_count, pct: false },
-                shares:   { value: selectedVideo.share_count,   pct: false },
-                'ret. %': { value: selectedVideo.retention_pct, pct: true  },
-              }
-            : {
-                views:    { value: DEMO_ANALYZE_REQUEST.current_stats.views,         pct: false },
-                likes:    { value: DEMO_ANALYZE_REQUEST.current_stats.likes,         pct: false },
-                comments: { value: DEMO_ANALYZE_REQUEST.current_stats.comments,      pct: false },
-                shares:   { value: DEMO_ANALYZE_REQUEST.current_stats.shares,        pct: false },
-                'ret. %': { value: DEMO_ANALYZE_REQUEST.current_stats.retention_pct, pct: true  },
-              }
+          const src = selectedVideo
+            ? { views: selectedVideo.view_count, likes: selectedVideo.like_count, comments: selectedVideo.comment_count, shares: selectedVideo.share_count, retention_pct: selectedVideo.retention_pct }
+            : DEMO_ANALYZE_REQUEST.current_stats
+          const stats = {
+            views:    { value: src.views,         pct: false },
+            likes:    { value: src.likes,         pct: false },
+            comments: { value: src.comments,      pct: false },
+            shares:   { value: src.shares,        pct: false },
+            'ret. %': { value: src.retention_pct, pct: true  },
+          }
           return (
             <div className="grid grid-cols-5 gap-1.5">
               {Object.entries(stats).map(([label, { value, pct }]) => (
@@ -553,7 +547,7 @@ export function AnalyzePage() {
             <div className="card p-5">
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className={cn('badge border px-2.5 py-1 text-xs font-medium', signalBg(result.signal as import('@/api/types').Signal))}>
-                  {result.signal.replace(/_/g, ' ')}
+                  {signalLabel(result.signal as import('@/api/types').Signal)}
                 </span>
                 <span className={cn('badge border px-2.5 py-1 text-xs font-medium', urgencyBg(result.urgency))}>
                   {result.urgency} urgency

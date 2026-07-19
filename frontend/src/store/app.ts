@@ -27,6 +27,12 @@ function notify() {
   listeners.forEach((l) => l())
 }
 
+function patchNotification(id: string, patch: Partial<Notification>) {
+  state.notifications = state.notifications.map((n) =>
+    n.id === id ? { ...n, ...patch } : n
+  )
+}
+
 export const store = {
   getState: () => state,
 
@@ -48,9 +54,7 @@ export const store = {
   },
 
   markRead(id: string) {
-    state.notifications = state.notifications.map((n) =>
-      n.id === id ? { ...n, read: true } : n
-    )
+    patchNotification(id, { read: true })
     notify()
   },
 
@@ -60,9 +64,7 @@ export const store = {
   },
 
   approveAction(id: string) {
-    state.notifications = state.notifications.map((n) =>
-      n.id === id ? { ...n, approved: true, read: true } : n
-    )
+    patchNotification(id, { approved: true, read: true })
     notify()
   },
 
@@ -84,7 +86,8 @@ export function useAppStore<T>(selector: (s: AppState) => T): T {
 
   useEffect(() => {
     const unsub = store.subscribe(() => {
-      setValue(selectorRef.current(state))
+      const next = selectorRef.current(state)
+      setValue((prev) => Object.is(prev, next) ? prev : next)
     })
     return () => { unsub() }
   }, [])

@@ -10,9 +10,12 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 @dataclass
@@ -38,11 +41,14 @@ class BaseAgent(ABC):
     """Subclass this and implement `_run`. `run` adds timing for free."""
 
     name: str
+    input_schema: "type[BaseModel] | None" = None
 
     @abstractmethod
     def _run(self, inputs: dict[str, Any]) -> dict[str, Any]: ...
 
     def run(self, inputs: dict[str, Any]) -> AgentResult:
+        if self.input_schema is not None:
+            self.input_schema.model_validate(inputs)
         start = time.perf_counter()
         output = self._run(inputs)
         latency_ms = (time.perf_counter() - start) * 1000

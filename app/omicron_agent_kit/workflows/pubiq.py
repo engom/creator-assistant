@@ -18,6 +18,7 @@ Z-score computation is pure deterministic Python.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 from typing import Any
@@ -30,8 +31,7 @@ from omicron_agent_kit.agents.insight_agent import InsightAgent
 from omicron_agent_kit.agents.notification_agent import NotificationAgent
 from omicron_agent_kit.db import baselines, checkpoints
 from omicron_agent_kit.platform.tiktok import TikTokStatsClient
-
-_CHECKPOINT_OFFSETS_MIN = [30, 60, 90]
+from omicron_agent_kit.stats import WORKFLOW_CHECKPOINT_OFFSETS_MIN as _CHECKPOINT_OFFSETS_MIN
 
 _MIN_SAMPLE_SIZE = 3
 
@@ -165,7 +165,7 @@ async def load_baseline(creator_id: str, platform: str) -> dict[str, baselines.B
 
 
 @DBOS.step()
-async def persist_checkpoint(
+async def persist_checkpoint_and_update_baseline(
     *,
     creator_id: str,
     post_id: str,
@@ -176,29 +176,31 @@ async def persist_checkpoint(
     comments: int,
     shares: int,
     retention_pct: float,
+    stats: dict[str, float],
     z_scores: dict | None = None,
     signal: str | None = None,
 ) -> None:
-    """Save a checkpoint snapshot to Postgres."""
-    await checkpoints.save_checkpoint(
-        creator_id=creator_id,
-        post_id=post_id,
-        platform=platform,
-        offset_min=offset_min,
-        views=views,
-        likes=likes,
-        comments=comments,
-        shares=shares,
-        retention_pct=retention_pct,
-        z_scores=z_scores,
-        signal=signal,
+    """Save a checkpoint snapshot and Welford-update the baseline in one atomic step.
+
+    Fusing these into one DBOS step prevents the double-update on workflow retry
+    that would occur if the process crashed between the two separate steps.
+    """
+    await asyncio.gather(
+        checkpoints.save_checkpoint(
+            creator_id=creator_id,
+            post_id=post_id,
+            platform=platform,
+            offset_min=offset_min,
+            views=views,
+            likes=likes,
+            comments=comments,
+            shares=shares,
+            retention_pct=retention_pct,
+            z_scores=z_scores,
+            signal=signal,
+        ),
+        baselines.update_baseline(creator_id, platform, stats),
     )
-
-
-@DBOS.step()
-async def welford_update(creator_id: str, platform: str, stats: dict[str, float]) -> None:
-    """Welford-update the creator's rolling baseline in Postgres."""
-    await baselines.update_baseline(creator_id, platform, stats)
 
 
 @DBOS.workflow()
@@ -307,7 +309,7 @@ async def pubiq_workflow(
                         exc=exc,
                     )
 
-        await persist_checkpoint(
+        await persist_checkpoint_and_update_baseline(
             creator_id=creator_id,
             post_id=post_id,
             platform=platform,
@@ -317,11 +319,11 @@ async def pubiq_workflow(
             comments=metrics["comments"],
             shares=metrics["shares"],
             retention_pct=metrics["retention_pct"],
+            stats=metrics,
             z_scores=z_scores,
             signal=signal,
         )
 
         results.append(asdict(pulse))
-        await welford_update(creator_id, platform, metrics)
 
     return results

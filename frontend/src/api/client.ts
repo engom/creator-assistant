@@ -16,6 +16,7 @@ const isNative = window.location.protocol === 'file:'
 const BASE = isNative ? 'http://192.168.1.155:8000' : '/api'
 
 function getApiKey(): string {
+  // Read from localStorage directly to avoid a circular import with store/app.ts
   return localStorage.getItem('omicron_api_key') ?? ''
 }
 
@@ -94,6 +95,6 @@ export const api = {
   },
 
   authorizeTikTok(creatorId: string): string {
-    return `/api/auth/tiktok/authorize?creator_id=${encodeURIComponent(creatorId)}`
+    return `${BASE}/auth/tiktok/authorize?creator_id=${encodeURIComponent(creatorId)}`
   },
 }

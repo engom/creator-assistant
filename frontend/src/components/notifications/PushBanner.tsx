@@ -1,11 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
 import { X, TrendingUp, TrendingDown, AlertTriangle, Check, Zap } from 'lucide-react'
 import { cn, platformIcon } from '@/lib/utils'
 import type { Notification } from '@/api/types'
-import { store } from '@/store/app'
-import { useAppStore } from '@/store/app'
+import { store, useAppStore } from '@/store/app'
 import { useNavigate } from 'react-router-dom'
 
 // Monitors the notification list and pops new, unread high/medium urgency alerts as push banners
@@ -15,20 +13,16 @@ export function PushBanner() {
   const notifications = useAppStore((s) => s.notifications)
   const [banner, setBanner] = useState<Notification | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const lastCountRef = useRef(0)
+  const seenIdsRef = useRef(new Set<string>())
 
   useEffect(() => {
     const current = notifications.filter((n) => !n.read && n.urgency !== 'low')
-    if (current.length > lastCountRef.current) {
-      const newest = current[0]
-      lastCountRef.current = current.length
-      if (newest) {
-        clearTimeout(timerRef.current)
-        setBanner(newest)
-        timerRef.current = setTimeout(() => setBanner(null), 5000)
-      }
-    } else {
-      lastCountRef.current = current.length
+    const unseen = current.filter((n) => !seenIdsRef.current.has(n.id))
+    unseen.forEach((n) => seenIdsRef.current.add(n.id))
+    if (unseen.length > 0) {
+      clearTimeout(timerRef.current)
+      setBanner(unseen[0])
+      timerRef.current = setTimeout(() => setBanner(null), 5000)
     }
   }, [notifications])
 

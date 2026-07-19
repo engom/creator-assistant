@@ -16,13 +16,15 @@ Required input fields:
 """
 
 from omicron_agent_kit.agents.base import BaseAgent
-from omicron_agent_kit.platform.tiktok import _CHECKPOINT_OFFSETS_MIN
+from omicron_agent_kit.api.schemas import MonitoringAgentInput
+from omicron_agent_kit.stats import CHECKPOINT_OFFSETS_MIN
 
 
 class MonitoringAgent(BaseAgent):
     """Detect a new creator post and emit the adaptive polling schedule for downstream agents."""
 
     name = "monitoring-agent"
+    input_schema = MonitoringAgentInput
 
     def _run(self, inputs: dict) -> dict:
         creator_id = inputs.get("creator_id")
@@ -42,6 +44,6 @@ class MonitoringAgent(BaseAgent):
             "post_id": post_id,
             "platform": platform,
             "detected_at": detected_at,
-            "poll_offsets_min": list(_CHECKPOINT_OFFSETS_MIN),
+            "poll_offsets_min": list(CHECKPOINT_OFFSETS_MIN),
             "status": "scheduled",
         }
