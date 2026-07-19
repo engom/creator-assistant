@@ -140,23 +140,30 @@ systemctl reload nginx
 (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet && systemctl reload nginx") | crontab -
 
 # ---------------------------------------------------------------------------
-# 9. Build Docker images and start the stack
-# docker-compose.yml is in docker/; WorkingDirectory in pubiq.service is /opt/pubiq
-# and the service invokes `docker compose --project-directory "$APP_DIR" -f docker/docker-compose.yml`.
+# 9. Build images, apply schema, start the full stack
 # ---------------------------------------------------------------------------
+COMPOSE="docker compose --project-directory $APP_DIR -f docker/docker-compose.yml"
+
 cd "$APP_DIR"
-docker compose --project-directory "$APP_DIR" -f docker/docker-compose.yml build
+$COMPOSE build
 
-# Apply the DB schema before starting the API. pg_isready confirms Postgres
-# is accepting connections; schema.sql is idempotent (all DDL uses IF NOT EXISTS).
-docker compose --project-directory "$APP_DIR" -f docker/docker-compose.yml up -d postgres
+# Bring Postgres up first and wait for it to be ready.
+$COMPOSE up -d postgres
 echo "  waiting for postgres..."
-docker compose --project-directory "$APP_DIR" -f docker/docker-compose.yml exec -T postgres \
-    sh -c 'until pg_isready -U "$POSTGRES_USER"; do sleep 0.5; done'
-docker compose --project-directory "$APP_DIR" -f docker/docker-compose.yml exec -T postgres \
-    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-    < app/omicron_agent_kit/db/schema.sql
+until $COMPOSE exec -T postgres pg_isready -U "$POSTGRES_USER" > /dev/null 2>&1; do
+    sleep 0.5
+done
 
-systemctl start pubiq
+# Apply schema (idempotent — all DDL uses IF NOT EXISTS).
+$COMPOSE exec -T postgres \
+    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    < "$APP_DIR/app/omicron_agent_kit/db/schema.sql"
+echo "  schema applied"
+
+# Start the full stack (api depends_on postgres healthy — already satisfied).
+# Use docker compose directly rather than systemctl to avoid cloud-init timeout;
+# systemd takes over on subsequent reboots via the enabled pubiq.service.
+$COMPOSE up -d
+echo "  stack started"
 
 echo "=== Pub-IQ boot complete: $(date -u) ==="
