@@ -11,9 +11,11 @@ import type {
   TikTokVideosResponse,
 } from './types'
 
-// On Android/iOS (file:// origin) relative URLs don't work — point straight at the backend
+// On Android/iOS (file:// origin) relative URLs don't work — point straight at the backend.
+// VITE_API_URL overrides the default to point at a remote host (e.g. https://api.omicron-ailabs.com).
 const isNative = window.location.protocol === 'file:'
-const BASE = isNative ? 'http://192.168.1.155:8000' : '/api'
+const REMOTE = import.meta.env.VITE_API_URL as string | undefined
+const BASE = isNative ? 'http://192.168.1.155:8000' : (REMOTE ?? '/api')
 
 function getApiKey(): string {
   // Read from localStorage directly to avoid a circular import with store/app.ts
