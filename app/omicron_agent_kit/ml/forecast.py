@@ -165,7 +165,7 @@ class PostPerformanceForecast:
         self,
         checkpoint_history: list[dict],
         historical_baseline: dict[str, float] | str,
-    ) -> "PostPerformanceForecast":
+    ) -> PostPerformanceForecast:
         """Train one model per stat on (T+30 features → T+60/T+30 ratio).
 
         Parameters

@@ -11,13 +11,12 @@ No API key is required on /authorize — it's opened directly in the creator's b
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import html
 import secrets
 from datetime import datetime, timedelta, timezone
-
-import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -93,12 +92,17 @@ async def tiktok_callback(code: str, state: str, request: Request) -> HTMLRespon
 
     entry = _pending.pop(state, None)
     if entry is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown or expired state.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown or expired state."
+        )
 
     creator_id, code_verifier = entry
 
     if not settings.tiktok_client_id or not settings.tiktok_client_secret:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="TikTok credentials not configured.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="TikTok credentials not configured.",
+        )
 
     try:
         token_data = await asyncio.to_thread(
@@ -110,7 +114,9 @@ async def tiktok_callback(code: str, state: str, request: Request) -> HTMLRespon
             code_verifier=code_verifier,
         )
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Token exchange failed: {exc}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Token exchange failed: {exc}"
+        ) from exc
 
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 86400))
 
@@ -220,7 +226,9 @@ async def get_creator_profile(
     try:
         user = await asyncio.to_thread(client.fetch_user_info, creator_id)
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"TikTok API error: {exc}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"TikTok API error: {exc}"
+        ) from exc
 
     # Explicit keys prevent TikTok response fields from silently overwriting creator_id/platform.
     return {

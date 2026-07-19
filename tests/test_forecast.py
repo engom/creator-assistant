@@ -2,8 +2,6 @@
 
 import math
 
-import pytest
-
 from omicron_agent_kit.ml.forecast import (
     MIN_SAMPLES,
     PostPerformanceForecast,
@@ -38,9 +36,7 @@ _T30 = {
 
 # Production strings as analytics_agent formats them (aliases present)
 _T30_STR = "views=12400 likes=890 comments=134 shares=67 retention=38"
-_BASELINE_STR = (
-    "avg_views=8900 avg_likes=610 avg_comments=88 avg_shares=41 avg_retention=31"
-)
+_BASELINE_STR = "avg_views=8900 avg_likes=610 avg_comments=88 avg_shares=41 avg_retention=31"
 
 
 def _make_checkpoint(offset_min: int, multiplier: float = 1.0) -> dict:
@@ -198,7 +194,10 @@ def test_model_decline_not_clamped_to_one():
     # Inject a scenario where model might predict < 1 ratio by using small t30 values.
     # We can't force the model output, but we verify the floor is 0.0, not 1.0.
     # The real regression test is that forecast[stat] < v30 is possible.
-    result = f._predict_model({"views": 100.0, "likes": 5.0, "comments": 1.0, "shares": 0.0, "retention_pct": 10.0}, _BASELINE)
+    result = f._predict_model(
+        {"views": 100.0, "likes": 5.0, "comments": 1.0, "shares": 0.0, "retention_pct": 10.0},
+        _BASELINE,
+    )
     for stat, val in result.forecast_t60.items():
         assert val >= 0.0, f"{stat}: model output {val} is negative"
 
@@ -230,10 +229,16 @@ def test_unknown_signal_uses_default_ratios():
 
 def test_non_finite_forecast_does_not_crash_context_str():
     """ForecastResult.__post_init__ must not raise on inf/nan values."""
-    import math
     from omicron_agent_kit.ml.forecast import ForecastResult
+
     r = ForecastResult(
-        forecast_t60={"views": float("inf"), "likes": float("nan"), "comments": 5.0, "shares": 0.0, "retention_pct": 30.0},
+        forecast_t60={
+            "views": float("inf"),
+            "likes": float("nan"),
+            "comments": 5.0,
+            "shares": 0.0,
+            "retention_pct": 30.0,
+        },
         confidence="model",
         n_training_samples=5,
     )

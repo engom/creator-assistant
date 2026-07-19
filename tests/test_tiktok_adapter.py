@@ -195,7 +195,6 @@ def test_post_stats_to_str_zero_values():
 def test_exchange_code_raises_without_network(monkeypatch):
     """exchange_code_for_tokens raises when httpx cannot connect (no mock credentials)."""
     import httpx
-
     from omicron_agent_kit.platform.tiktok import exchange_code_for_tokens
 
     def _fail(*a, **kw):
@@ -209,7 +208,6 @@ def test_exchange_code_raises_without_network(monkeypatch):
 def test_refresh_token_raises_without_network(monkeypatch):
     """refresh_access_token raises when httpx cannot connect."""
     import httpx
-
     from omicron_agent_kit.platform.tiktok import refresh_access_token
 
     def _fail(*a, **kw):

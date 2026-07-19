@@ -88,5 +88,3 @@ async def update_baseline(
                 """,
                 rows,
             )
-
-

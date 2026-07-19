@@ -246,8 +246,10 @@ class TestPipeline:
         # Analytics
         assert isinstance(d["z_scores"], dict)
         assert d["signal"] in (
-            "above_baseline", "within_baseline",
-            "below_baseline", "insufficient_data"
+            "above_baseline",
+            "within_baseline",
+            "below_baseline",
+            "insufficient_data",
         )
 
         # Insight (may be 'Insight unavailable' if LM not configured)
@@ -260,8 +262,10 @@ class TestPipeline:
 
         # Trace IDs — one per agent
         expected_agents = {
-            "monitoring-agent", "analytics-agent",
-            "insight-agent", "notification-agent",
+            "monitoring-agent",
+            "analytics-agent",
+            "insight-agent",
+            "notification-agent",
         }
         assert set(d["trace_ids"].keys()) == expected_agents
         for tid in d["trace_ids"].values():
@@ -275,7 +279,7 @@ class TestPipeline:
         payload = {
             **_ANALYZE_PAYLOAD,
             "current_stats": {
-                "views": 40000,   # ~2.4σ above 8900 avg, 2100 std
+                "views": 40000,  # ~2.4σ above 8900 avg, 2100 std
                 "likes": 3000,
                 "comments": 300,
                 "shares": 200,
@@ -302,7 +306,7 @@ class TestPipeline:
         payload = {
             **_ANALYZE_PAYLOAD,
             "current_stats": {
-                "views": 2000,    # ~-3.3σ below baseline
+                "views": 2000,  # ~-3.3σ below baseline
                 "likes": 100,
                 "comments": 10,
                 "shares": 5,
@@ -333,7 +337,7 @@ class TestPipeline:
         r = requests.post(
             f"{BASE_URL}/v1/pipeline/analyze-post",
             headers=HEADERS,
-            json={"creator_id": "x"},   # missing almost everything
+            json={"creator_id": "x"},  # missing almost everything
             timeout=10,
         )
         assert r.status_code == 422

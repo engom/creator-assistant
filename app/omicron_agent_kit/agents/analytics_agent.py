@@ -24,18 +24,14 @@ from omicron_agent_kit.agents.base import BaseAgent
 from omicron_agent_kit.api.schemas import AnalyticsAgentInput
 from omicron_agent_kit.stats import STAT_DISPLAY_ALIASES, STAT_NAMES
 
-_STAT_PAIRS = [
-    (s, f"avg_{s}", f"std_{s}") for s in STAT_NAMES
-]
+_STAT_PAIRS = [(s, f"avg_{s}", f"std_{s}") for s in STAT_NAMES]
 
 _STAT_DISPLAY = [(s, avg) for s, avg, _ in _STAT_PAIRS]
 
 # Display names for the formatted strings passed to DSPy prompts.
 # Identical to canonical key except for the two aliases in STAT_DISPLAY_ALIASES.
 _DISPLAY_NAMES: dict[str, str] = {
-    key: STAT_DISPLAY_ALIASES.get(key, key)
-    for s in STAT_NAMES
-    for key in (s, f"avg_{s}")
+    key: STAT_DISPLAY_ALIASES.get(key, key) for s in STAT_NAMES for key in (s, f"avg_{s}")
 }
 
 
