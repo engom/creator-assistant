@@ -164,19 +164,25 @@ sync-env:                          ## Push .env secrets to SSM + hot-reload API 
 	  _push POSTGRES_USER        "$$(_env POSTGRES_USER)"; \
 	  _push POSTGRES_PASSWORD    "$$(_env POSTGRES_PASSWORD)"; \
 	  _push POSTGRES_DB          "$$(_env POSTGRES_DB)"; \
-	  cors_val="$$(_env CORS_ORIGINS)"; \
-	  if [ -n "$$cors_val" ]; then \
-	    aws ssm put-parameter --region "$(AWS_REGION)" \
-	        --name "/pubiq/CORS_ORIGINS" --type String \
-	        --value "$$cors_val" --overwrite > /dev/null; \
-	    echo "    ✓ /pubiq/CORS_ORIGINS"; \
-	  fi
+	  for plain_var in CORS_ORIGINS LLM_MODEL; do \
+	    val="$$(_env $$plain_var)"; \
+	    if [ -n "$$val" ]; then \
+	      aws ssm put-parameter --region "$(AWS_REGION)" \
+	          --name "/pubiq/$$plain_var" --type String \
+	          --value "$$val" --overwrite > /dev/null; \
+	      echo "    ✓ /pubiq/$$plain_var"; \
+	    fi; \
+	  done; \
+	  aws ssm put-parameter --region "$(AWS_REGION)" \
+	      --name "/pubiq/AWS_REGION" --type String \
+	      --value "$(AWS_REGION)" --overwrite > /dev/null; \
+	  echo "    ✓ /pubiq/AWS_REGION"
 	@echo "  → Updating /opt/pubiq/.env on EC2..."
 	@aws ssm send-command \
 	    --region "$(AWS_REGION)" \
 	    --instance-ids "$(EC2_INSTANCE_ID)" \
 	    --document-name AWS-RunShellScript \
-	    --parameters 'commands=["set -e","cd /opt/pubiq","for param in API_KEYS TIKTOK_CLIENT_ID TIKTOK_CLIENT_SECRET TIKTOK_REDIRECT_URI JWT_SECRET POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB CORS_ORIGINS; do val=$$(aws ssm get-parameter --region eu-west-3 --name \"/pubiq/$$param\" --with-decryption --query Parameter.Value --output text 2>/dev/null) || continue; grep -q \"^$$param=\" .env && sed -i \"s|^$$param=.*|$$param=$$val|\" .env || echo \"$$param=$$val\" >> .env; done","docker compose --project-directory /opt/pubiq -f docker/docker-compose.yml up -d --force-recreate api","echo done"]' \
+	    --parameters 'commands=["set -e","cd /opt/pubiq","for param in API_KEYS TIKTOK_CLIENT_ID TIKTOK_CLIENT_SECRET TIKTOK_REDIRECT_URI JWT_SECRET POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB CORS_ORIGINS LLM_MODEL AWS_REGION; do val=$$(aws ssm get-parameter --region eu-west-3 --name \"/pubiq/$$param\" --with-decryption --query Parameter.Value --output text 2>/dev/null) || continue; grep -q \"^$$param=\" .env && sed -i \"s|^$$param=.*|$$param=$$val|\" .env || echo \"$$param=$$val\" >> .env; done","docker compose --project-directory /opt/pubiq -f docker/docker-compose.yml up -d --force-recreate api","echo done"]' \
 	    --comment "sync-env from Makefile" \
 	    --output text --query Command.CommandId
 	@echo "  → Container restarting with updated env (check: make tunnel then curl localhost:8000/health)"

@@ -37,7 +37,7 @@ variable "app_repo" {
 variable "llm_model" {
   description = "LiteLLM-style model string written into .env on the instance."
   type        = string
-  default     = "bedrock/global.anthropic.claude-sonnet-4-6"
+  default     = "bedrock/eu.anthropic.claude-sonnet-4-6"
 }
 
 # ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ variable "secret_postgres_user" {
   description = "Postgres superuser name. Override before first apply."
   type        = string
   sensitive   = true
-  default     = "CHANGE_ME"
+  default     = "omicron"
 }
 
 variable "secret_postgres_password" {
