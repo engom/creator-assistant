@@ -86,7 +86,8 @@ E2E_FRONTEND_URL ?= http://localhost:$(FRONTEND_PORT)
         e2e e2e-live _e2e-run-and-stop \
         lint fmt check \
         compile-insight recompile-insight \
-        clean clean-compiled clean-cache frontend-build
+        clean clean-compiled clean-cache frontend-build \
+        sync-env
 
 # --------------------------------------------------------------------------- #
 # Help
@@ -140,6 +141,38 @@ tunnel:                            ## Forward localhost:8000 → EC2:8000 via SS
 	  --region "$(AWS_REGION)" \
 	  --document-name AWS-StartPortForwardingSession \
 	  --parameters '{"portNumber":["$(BACKEND_PORT)"],"localPortNumber":["$(BACKEND_PORT)"]}'
+
+sync-env:                          ## Push .env secrets to SSM + hot-reload API container on EC2
+	@if [ -z "$(EC2_INSTANCE_ID)" ]; then \
+	  echo "  ✗ EC2_INSTANCE_ID not set. Run: make sync-env EC2_INSTANCE_ID=i-xxxx"; exit 1; \
+	fi
+	@echo "  → Pushing secrets from .env to SSM Parameter Store (/pubiq/*)..."
+	@_push() { \
+	    local name="$$1" val="$$2"; \
+	    if [ -z "$$val" ] || [ "$$val" = "CHANGE_ME" ]; then return; fi; \
+	    aws ssm put-parameter --region "$(AWS_REGION)" \
+	        --name "/pubiq/$$name" --type SecureString \
+	        --value "$$val" --overwrite > /dev/null; \
+	    echo "    ✓ /pubiq/$$name"; \
+	  }; \
+	  _env() { grep -E "^$$1=" .env 2>/dev/null | cut -d= -f2- | tr -d '\r'; }; \
+	  _push API_KEYS             "$$(_env API_KEYS)"; \
+	  _push TIKTOK_CLIENT_ID     "$$(_env TIKTOK_CLIENT_ID)"; \
+	  _push TIKTOK_CLIENT_SECRET "$$(_env TIKTOK_CLIENT_SECRET)"; \
+	  _push TIKTOK_REDIRECT_URI  "$$(_env TIKTOK_REDIRECT_URI)"; \
+	  _push JWT_SECRET           "$$(_env JWT_SECRET)"; \
+	  _push POSTGRES_USER        "$$(_env POSTGRES_USER)"; \
+	  _push POSTGRES_PASSWORD    "$$(_env POSTGRES_PASSWORD)"; \
+	  _push POSTGRES_DB          "$$(_env POSTGRES_DB)"
+	@echo "  → Updating /opt/pubiq/.env on EC2..."
+	@aws ssm send-command \
+	    --region "$(AWS_REGION)" \
+	    --instance-ids "$(EC2_INSTANCE_ID)" \
+	    --document-name AWS-RunShellScript \
+	    --parameters 'commands=["set -e","cd /opt/pubiq","for param in API_KEYS TIKTOK_CLIENT_ID TIKTOK_CLIENT_SECRET TIKTOK_REDIRECT_URI JWT_SECRET POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB; do val=$$(aws ssm get-parameter --region eu-west-3 --name \"/pubiq/$$param\" --with-decryption --query Parameter.Value --output text 2>/dev/null) || continue; sed -i \"s|^$$param=.*|$$param=$$val|\" .env || echo \"$$param=$$val\" >> .env; done","docker compose --project-directory /opt/pubiq -f docker/docker-compose.yml up -d --force-recreate api","echo done"]' \
+	    --comment "sync-env from Makefile" \
+	    --output text --query Command.CommandId
+	@echo "  → Container restarting with updated env (check: make tunnel then curl localhost:8000/health)"
 
 e2e-ec2: tunnel &                  ## Run e2e tests against EC2 (starts tunnel in background, waits, runs, kills)
 	@echo "  → Waiting for tunnel on :$(BACKEND_PORT)..."

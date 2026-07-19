@@ -224,6 +224,14 @@ resource "aws_ssm_parameter" "api_keys" {
   lifecycle { ignore_changes = [value] }
 }
 
+resource "aws_ssm_parameter" "tiktok_redirect_uri" {
+  name  = "/pubiq/TIKTOK_REDIRECT_URI"
+  type  = "SecureString"
+  value = var.secret_tiktok_redirect_uri
+  overwrite = true
+  lifecycle { ignore_changes = [value] }
+}
+
 # ---------------------------------------------------------------------------
 # EC2 instance — t4g.small (Graviton2, arm64, 2 vCPU / 2 GB RAM)
 # ---------------------------------------------------------------------------

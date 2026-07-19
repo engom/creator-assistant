@@ -93,3 +93,10 @@ variable "secret_api_keys" {
   sensitive   = true
   default     = "CHANGE_ME"
 }
+
+variable "secret_tiktok_redirect_uri" {
+  description = "TikTok OAuth redirect URI (must match TikTok Developer Portal exactly)."
+  type        = string
+  sensitive   = true
+  default     = "https://api.omicron-ailabs.com/auth/tiktok/callback"
+}
