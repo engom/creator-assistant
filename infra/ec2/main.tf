@@ -140,6 +140,11 @@ data "aws_iam_policy_document" "ssm_params" {
     actions   = ["route53:ChangeResourceRecordSets"]
     resources = ["arn:aws:route53:::hostedzone/${var.hosted_zone_id}"]
   }
+  statement {
+    # Bedrock inference — LLM_MODEL=bedrock/... uses the instance role, no API key needed.
+    actions   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+    resources = ["arn:aws:bedrock:*::foundation-model/*"]
+  }
 }
 
 resource "aws_iam_role_policy" "ssm_params" {
@@ -195,14 +200,6 @@ resource "aws_ssm_parameter" "tiktok_client_secret" {
   name  = "/pubiq/TIKTOK_CLIENT_SECRET"
   type  = "SecureString"
   value = var.secret_tiktok_client_secret
-  overwrite = true
-  lifecycle { ignore_changes = [value] }
-}
-
-resource "aws_ssm_parameter" "anthropic_api_key" {
-  name  = "/pubiq/ANTHROPIC_API_KEY"
-  type  = "SecureString"
-  value = var.secret_anthropic_api_key
   overwrite = true
   lifecycle { ignore_changes = [value] }
 }

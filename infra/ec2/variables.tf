@@ -74,13 +74,6 @@ variable "secret_tiktok_client_secret" {
   default     = "CHANGE_ME"
 }
 
-variable "secret_anthropic_api_key" {
-  description = "Anthropic API key for the insight-agent."
-  type        = string
-  sensitive   = true
-  default     = "CHANGE_ME"
-}
-
 variable "secret_jwt_secret" {
   description = "JWT signing secret. Use a long random string."
   type        = string

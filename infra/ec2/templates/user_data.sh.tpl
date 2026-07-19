@@ -57,9 +57,10 @@ POSTGRES_PASSWORD=$(get_ssm /pubiq/POSTGRES_PASSWORD)
 POSTGRES_DB=$(get_ssm /pubiq/POSTGRES_DB)
 TIKTOK_CLIENT_ID=$(get_ssm /pubiq/TIKTOK_CLIENT_ID)
 TIKTOK_CLIENT_SECRET=$(get_ssm /pubiq/TIKTOK_CLIENT_SECRET)
-ANTHROPIC_API_KEY=$(get_ssm /pubiq/ANTHROPIC_API_KEY)
 JWT_SECRET=$(get_ssm /pubiq/JWT_SECRET)
 API_KEYS=$(get_ssm /pubiq/API_KEYS)
+# ANTHROPIC_API_KEY intentionally omitted — LLM_MODEL=bedrock/* uses the EC2
+# instance role for inference; no API key is needed.
 
 # .env lives at the repo root, next to pyproject.toml — docker-compose.yml
 # references it as env_file: .env (resolved relative to --project-directory).
@@ -71,9 +72,9 @@ POSTGRES_PASSWORD=__POSTGRES_PASSWORD__
 POSTGRES_DB=__POSTGRES_DB__
 TIKTOK_CLIENT_ID=__TIKTOK_CLIENT_ID__
 TIKTOK_CLIENT_SECRET=__TIKTOK_CLIENT_SECRET__
-ANTHROPIC_API_KEY=__ANTHROPIC_API_KEY__
 JWT_SECRET=__JWT_SECRET__
 API_KEYS=__API_KEYS__
+LLM_MODEL=bedrock/us.anthropic.claude-sonnet-4-6
 DATABASE_URL=postgresql://__POSTGRES_USER__:__POSTGRES_PASSWORD__@postgres:5432/__POSTGRES_DB__
 DBOS_SYSTEM_DATABASE_URL=postgresql://__POSTGRES_USER__:__POSTGRES_PASSWORD__@postgres:5432/__POSTGRES_DB__
 ENV_TEMPLATE
@@ -83,7 +84,6 @@ sed -i \
   -e "s|__POSTGRES_DB__|$POSTGRES_DB|g" \
   -e "s|__TIKTOK_CLIENT_ID__|$TIKTOK_CLIENT_ID|g" \
   -e "s|__TIKTOK_CLIENT_SECRET__|$TIKTOK_CLIENT_SECRET|g" \
-  -e "s|__ANTHROPIC_API_KEY__|$ANTHROPIC_API_KEY|g" \
   -e "s|__JWT_SECRET__|$JWT_SECRET|g" \
   -e "s|__API_KEYS__|$API_KEYS|g" \
   "$APP_DIR/.env"
