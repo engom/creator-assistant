@@ -36,6 +36,21 @@ Connect:
 aws ssm start-session --target i-002a4de1c32795fb0 --region eu-west-3
 ```
 
+## Port-forward to EC2 (for local testing against live instance)
+
+SSM port forwarding tunnels `localhost:8000` directly to the API container on EC2 — no SSH, no security group changes:
+
+```bash
+# Auto-reads instance ID from Terraform output
+make tunnel
+
+# Or specify manually
+make tunnel EC2_INSTANCE_ID=i-002a4de1c32795fb0
+
+# Run e2e test suite against the live instance
+make e2e-ec2
+```
+
 ## Common operations
 
 **View API logs** (inside SSM session):

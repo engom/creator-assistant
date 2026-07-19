@@ -64,6 +64,11 @@ BACKEND_PORT  := 8000
 COMPOSE       := docker compose --project-directory . -f docker/docker-compose.yml
 COMPOSE_FILE  := docker/docker-compose.yml
 
+# EC2 instance ID — read from Terraform output if available, else override on CLI:
+#   make tunnel EC2_INSTANCE_ID=i-0abc123
+EC2_INSTANCE_ID ?= $(shell cd infra/ec2 && terraform output -raw instance_id 2>/dev/null)
+AWS_REGION      ?= eu-west-3
+
 # E2E_API_KEY is read from E2E_API_KEY= in .env (a dedicated test key, not API_KEYS).
 E2E_API_KEY      ?= $(shell grep -E '^E2E_API_KEY=' .env 2>/dev/null | cut -d= -f2- | tr -d ' \r')
 E2E_BASE_URL     ?= http://localhost:$(BACKEND_PORT)
@@ -75,7 +80,7 @@ E2E_FRONTEND_URL ?= http://localhost:$(FRONTEND_PORT)
 
 .PHONY: help \
         install install-% install-frontend install-all \
-        serve serve-mcp db-init db-start db-stop \
+        serve serve-mcp tunnel e2e-ec2 db-init db-start db-stop \
         dev dev-backend dev-frontend dev-all \
         test test-v test-one \
         e2e e2e-live _e2e-run-and-stop \
@@ -123,6 +128,28 @@ serve:                             ## Start the API with hot-reload on :8000
 
 serve-mcp:                         ## Start the MCP adapter (requires .[mcp] and API running)
 	$(PY) -m omicron_agent_kit.mcp.server
+
+tunnel:                            ## Forward localhost:8000 → EC2:8000 via SSM (no SSH needed)
+	@if [ -z "$(EC2_INSTANCE_ID)" ]; then \
+	  echo "  ✗ EC2_INSTANCE_ID not set. Run: make tunnel EC2_INSTANCE_ID=i-xxxx"; exit 1; \
+	fi
+	@echo "  → Forwarding localhost:$(BACKEND_PORT) → EC2 $(EC2_INSTANCE_ID):$(BACKEND_PORT)"
+	@echo "  → Press Ctrl-C to stop the tunnel"
+	aws ssm start-session \
+	  --target "$(EC2_INSTANCE_ID)" \
+	  --region "$(AWS_REGION)" \
+	  --document-name AWS-StartPortForwardingSession \
+	  --parameters '{"portNumber":["$(BACKEND_PORT)"],"localPortNumber":["$(BACKEND_PORT)"]}'
+
+e2e-ec2: tunnel &                  ## Run e2e tests against EC2 (starts tunnel in background, waits, runs, kills)
+	@echo "  → Waiting for tunnel on :$(BACKEND_PORT)..."
+	@for i in $$(seq 1 20); do \
+	  curl -sf http://localhost:$(BACKEND_PORT)/health > /dev/null 2>&1 && break; \
+	  sleep 0.5; \
+	done
+	E2E_BASE_URL=http://localhost:$(BACKEND_PORT) E2E_API_KEY=$(E2E_API_KEY) \
+	  $(PYTEST) tests/test_e2e.py -v; \
+	kill %1 2>/dev/null || true
 
 db-start:                          ## Start Postgres via docker compose
 	$(COMPOSE) up -d postgres
