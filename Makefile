@@ -61,6 +61,7 @@ NPM           := npm
 FRONTEND      := frontend
 FRONTEND_PORT := 5173
 BACKEND_PORT  := 8000
+COMPOSE       := docker compose --project-directory . -f docker/docker-compose.yml
 COMPOSE_FILE  := docker/docker-compose.yml
 
 # E2E_API_KEY is read from E2E_API_KEY= in .env (a dedicated test key, not API_KEYS).
@@ -124,15 +125,15 @@ serve-mcp:                         ## Start the MCP adapter (requires .[mcp] and
 	$(PY) -m omicron_agent_kit.mcp.server
 
 db-start:                          ## Start Postgres via docker compose
-	docker compose -f $(COMPOSE_FILE) up -d postgres
+	$(COMPOSE) up -d postgres
 
 db-stop:                           ## Stop Postgres via docker compose
-	docker compose -f $(COMPOSE_FILE) stop postgres
+	$(COMPOSE) stop postgres
 
 # Stamp-file: re-applies only when schema.sql is newer than the stamp.
 # Safe to re-run unconditionally (all DDL is IF NOT EXISTS).
 .db-schema-applied: app/omicron_agent_kit/db/schema.sql
-	docker compose -f $(COMPOSE_FILE) exec -T postgres \
+	$(COMPOSE) exec -T postgres \
 	  psql -U postgres -d omicron < $<
 	@touch $@
 
@@ -173,8 +174,8 @@ e2e: _e2e-start-postgres _e2e-start-backend _e2e-wait _e2e-run-and-stop  ## Star
 # Ensure Postgres is up (idempotent — docker compose up is safe if already running)
 _e2e-start-postgres:
 	@echo "  → Ensuring Postgres is up…"
-	docker compose -f $(COMPOSE_FILE) up -d postgres
-	@docker compose -f $(COMPOSE_FILE) exec -T postgres \
+	$(COMPOSE) up -d postgres
+	@$(COMPOSE) exec -T postgres \
 	  sh -c 'until pg_isready -U postgres; do sleep 0.5; done' > /dev/null 2>&1
 	@echo "  → Postgres is ready"
 

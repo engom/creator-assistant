@@ -13,3 +13,11 @@ CLAUDE.md
 .postman
 postman
 tmp-mobile-test
+
+# Terraform
+**/.terraform/
+**/tfplan
+**/*.tfplan
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/crash.log

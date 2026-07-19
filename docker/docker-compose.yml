@@ -1,34 +1,36 @@
-# Omicron Creator Agent — local development stack
-#
-# Start:   docker compose -f docker/docker-compose.yml up -d
-# Stop:    docker compose -f docker/docker-compose.yml down
-# Logs:    docker compose -f docker/docker-compose.yml logs -f postgres
-# Reset:   docker compose -f docker/docker-compose.yml down -v
-#
-# After starting, apply the schema once:
-#   make db-init
-#
-# Credentials are read from .env (project root).
-# Defaults match DATABASE_URL in .env.example.
-
 services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"   # only reachable through Nginx, never the internet directly
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
       POSTGRES_DB: ${POSTGRES_DB:-omicron}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
-      retries: 5
-    restart: unless-stopped
+      retries: 10
 
 volumes:
-  postgres-data:
-    driver: local
+  pgdata:
