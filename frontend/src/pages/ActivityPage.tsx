@@ -93,33 +93,27 @@ export function ActivityPage() {
         </div>
 
         <div className="border-t border-white/5 pt-4">
-          <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider mb-3">
-            Historical avg · last {creator.baseline.sample_size} posts
-          </p>
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            {[
-              { label: 'Views',  value: creator.baseline.avg_views,  std: creator.baseline.std_views, pct: false },
-              { label: 'Likes',  value: creator.baseline.avg_likes,  std: creator.baseline.std_likes, pct: false },
-            ].map(({ label, value, std }) => (
-              <div key={label} className="bg-white/4 rounded-xl p-3 flex flex-col gap-1">
-                <p className="text-[10px] text-gray-600 uppercase tracking-wide">{label}</p>
-                <p className="text-sm font-semibold text-gray-200 tabular-nums">{formatNumber(value)}</p>
-                <p className="text-[10px] text-gray-600 tabular-nums">±{formatNumber(std)}</p>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
+              Historical avg
+            </p>
+            <p className="text-[10px] text-gray-600">{creator.baseline.sample_size} posts sampled</p>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { label: 'Shares',  value: creator.baseline.avg_shares,        std: creator.baseline.std_shares },
-              { label: 'Ret. %',  value: creator.baseline.avg_retention_pct, std: creator.baseline.std_retention_pct, isPct: true },
-              { label: 'n',       value: creator.baseline.sample_size,        std: 0, isCount: true },
-            ].map(({ label, value, std, isPct, isCount }) => (
-              <div key={label} className="bg-white/4 rounded-xl p-3 flex flex-col gap-1">
+              { label: 'Views',   value: creator.baseline.avg_views,          std: creator.baseline.std_views,          isPct: false },
+              { label: 'Likes',   value: creator.baseline.avg_likes,          std: creator.baseline.std_likes,          isPct: false },
+              { label: 'Shares',  value: creator.baseline.avg_shares,         std: creator.baseline.std_shares,         isPct: false },
+              { label: 'Ret. %',  value: creator.baseline.avg_retention_pct,  std: creator.baseline.std_retention_pct,  isPct: true  },
+            ].map(({ label, value, std, isPct }) => (
+              <div key={label} className="bg-white/4 rounded-xl p-3 flex flex-col items-center gap-1 text-center">
                 <p className="text-[10px] text-gray-600 uppercase tracking-wide">{label}</p>
                 <p className="text-sm font-semibold text-gray-200 tabular-nums">
-                  {isCount ? value : isPct ? formatPercent(value) : formatNumber(value)}
+                  {isPct ? formatPercent(value) : formatNumber(value)}
                 </p>
-                {!isCount && <p className="text-[10px] text-gray-600 tabular-nums">±{isPct ? formatPercent(std) : formatNumber(std)}</p>}
+                <p className="text-[10px] text-gray-600 tabular-nums">
+                  ±{isPct ? formatPercent(std) : formatNumber(std)}
+                </p>
               </div>
             ))}
           </div>

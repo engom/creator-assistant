@@ -146,9 +146,9 @@ function ForecastCard({
 
 function StatTile({ label, value, pct }: { label: string; value: number; pct: boolean }) {
   return (
-    <div className="bg-white/4 rounded-xl p-2.5 flex flex-col gap-1">
-      <p className="text-[10px] font-medium text-gray-500 leading-tight">{label}</p>
-      <p className="text-sm font-bold text-gray-100 tabular-nums leading-tight">
+    <div className="bg-white/4 rounded-xl p-3 flex flex-col items-center gap-1 text-center">
+      <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider leading-none">{label}</p>
+      <p className="text-base font-bold text-gray-100 tabular-nums leading-tight">
         {pct ? formatPercent(value, 1) : formatNumber(value)}
       </p>
     </div>
@@ -511,8 +511,8 @@ export function AnalyzePage() {
           return (
             <div className="flex flex-col gap-1.5">
               <div className="grid grid-cols-2 gap-1.5">
-                <StatTile label="Views"   value={src.views} pct={false} />
-                <StatTile label="Likes"   value={src.likes} pct={false} />
+                <StatTile label="Views" value={src.views} pct={false} />
+                <StatTile label="Likes" value={src.likes} pct={false} />
               </div>
               <div className="grid grid-cols-3 gap-1.5">
                 <StatTile label="Comments" value={src.comments}      pct={false} />

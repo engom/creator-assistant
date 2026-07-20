@@ -116,7 +116,12 @@ export function FeedPage() {
             ['Views', formatNumber(pulse.current_stats.views)],
             ['Engagement', pulse.current_stats.views > 0 ? `${((pulse.current_stats.likes + pulse.current_stats.comments + pulse.current_stats.shares) / pulse.current_stats.views * 100).toFixed(1)}%` : '—'],
             ['Retention', `${pulse.current_stats.retention_pct.toFixed(0)}%`],
-          ].map(([label, value]) => <div key={label} className="rounded-2xl bg-white/[.045] px-2 py-2.5 text-center"><p className="text-[10px] uppercase tracking-wide text-gray-600">{label}</p><p className="mt-1 font-mono text-sm font-medium text-gray-100">{value}</p></div>)}
+          ].map(([label, value]) => (
+            <div key={label} className="flex flex-col items-center gap-1 rounded-2xl bg-white/[.045] px-2 py-2.5 text-center">
+              <p className="text-[10px] uppercase tracking-wide text-gray-600">{label}</p>
+              <p className="font-mono text-sm font-bold text-gray-100 tabular-nums">{value}</p>
+            </div>
+          ))}
         </div>
       </motion.section>
 
