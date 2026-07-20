@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Edit3, Send, Sparkles } from 'lucide-react'
+import { ArrowLeft, Camera, Check, ChevronLeft, ChevronRight, CirclePlay, Edit3, Send, Sparkles } from 'lucide-react'
 import { store, useAppStore } from '@/store/app'
 import { cn } from '@/lib/utils'
 
 type Draft = {
-  platform: 'Instagram Reel' | 'LinkedIn'
+  platform: 'Instagram Reel' | 'YouTube Short'
   caption: string
   note: string
   gradient: string
@@ -21,10 +21,10 @@ function buildDrafts(title: string, action: string): Draft[] {
       gradient: 'from-[#e83983] via-[#8b5cf6] to-[#3749b6]',
     },
     {
-      platform: 'LinkedIn',
-      caption: `${action}\n\nOriginal post: ${title}`,
-      note: 'Text post · Professional tone',
-      gradient: 'from-[#0a66c2] via-[#174d91] to-[#102a55]',
+      platform: 'YouTube Short',
+      caption: `${title}\n\n${action}\n\n#Shorts #CreatorTips`,
+      note: 'Vertical video · Reuse original audio',
+      gradient: 'from-[#ff0000] via-[#cc0000] to-[#7f0000]',
     },
   ]
 }
@@ -95,7 +95,7 @@ export function StagingPage() {
               index === active ? 'bg-white/10 text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-300',
             )}
           >
-            {index === 0 ? <Camera size={15} /> : <BriefcaseBusiness size={15} />}
+            {index === 0 ? <Camera size={15} /> : <CirclePlay size={15} />}
             {item.platform.replace(' Reel', '')}
           </button>
         ))}

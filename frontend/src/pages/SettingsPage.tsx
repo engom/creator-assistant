@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Key, Eye, EyeOff, CheckCircle, ExternalLink, Shield, AlertTriangle, Copy, Globe2, Terminal, Link2, Check, HelpCircle } from 'lucide-react'
 import { store, useAppStore } from '@/store/app'
-import { api } from '@/api/client'
+import { api, BASE } from '@/api/client'
 import { toast } from '@/components/ui/Toast'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
@@ -75,6 +75,7 @@ export function SettingsPage() {
   const lmError = useAppStore((s) => s.lmError)
   const [draftKey, setDraftKey] = useState(apiKey)
   const [showKey, setShowKey] = useState(false)
+  const maskedKey = draftKey.length > 4 ? '••••••••' + draftKey.slice(-4) : '••••••••'
   const [testing, setTesting] = useState(false)
   const [tunnelUrl, setTunnelUrl] = useState('')
   const [selectedCreator, setSelectedCreator] = useState(DEMO_CREATORS[0]?.id ?? 'elpanthio')
@@ -120,7 +121,7 @@ export function SettingsPage() {
     <div className="flex flex-col gap-8 animate-fade-in max-w-xl pb-4">
       <div>
         <h1 className="text-xl font-semibold text-gray-100">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Configure your Omicron workspace.</p>
+        <p className="text-sm text-gray-500 mt-1">Configure your PubIQ workspace.</p>
       </div>
 
       {/* API Key */}
@@ -132,13 +133,22 @@ export function SettingsPage() {
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={draftKey}
-              onChange={(e) => setDraftKey(e.target.value)}
-              placeholder="Enter your API key"
-              className="min-h-11 w-full rounded-xl border border-surface-dark-border bg-white/5 px-3 pr-12 font-mono text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20"
-            />
+            {showKey ? (
+              <input
+                type="text"
+                value={draftKey}
+                onChange={(e) => setDraftKey(e.target.value)}
+                placeholder="Enter your API key"
+                className="min-h-11 w-full rounded-xl border border-surface-dark-border bg-white/5 px-3 pr-12 font-mono text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/20"
+              />
+            ) : (
+              <div
+                className="min-h-11 w-full rounded-xl border border-surface-dark-border bg-white/5 px-3 pr-12 font-mono text-sm text-gray-400 flex items-center cursor-text"
+                onClick={() => setShowKey(true)}
+              >
+                {draftKey ? maskedKey : <span className="text-gray-600">Enter your API key</span>}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setShowKey((s) => !s)}
@@ -172,7 +182,9 @@ export function SettingsPage() {
           <Badge variant={health === 'ok' ? 'success' : health === 'degraded' ? 'warning' : 'muted'}>
             {health}
           </Badge>
-          <span className="text-xs text-gray-500 font-mono">localhost:8000</span>
+          {import.meta.env.DEV && (
+            <span className="text-xs text-gray-500 font-mono">{BASE}</span>
+          )}
         </div>
         {lmError && (
           <div className="mt-3 flex items-start gap-2 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
@@ -228,7 +240,7 @@ export function SettingsPage() {
               <div>
                 <p className="text-sm font-semibold text-amber-200">One TikTok console step still cannot be automated locally</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-100/70">
-                  TikTok requires you to add the HTTPS callback URL in the developer console and include the creator under Sandbox target users. Omicron now gives you the exact values and links so users do not have to read the setup markdown.
+                  TikTok requires you to add the HTTPS callback URL in the developer console and include the creator under Sandbox target users. PubIQ now gives you the exact values and links so users do not have to read the setup markdown.
                 </p>
               </div>
             </div>

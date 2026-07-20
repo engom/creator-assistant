@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.omicron.app',
-  appName: 'Omicron',
+  appName: 'PubIQ',
   webDir: 'dist',
   // Remove the server block before releasing to the Play Store
   // server: {

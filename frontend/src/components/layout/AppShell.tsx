@@ -1,12 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Activity, Play, Settings, Zap } from 'lucide-react'
+import { LayoutDashboard, Activity, BarChart2, Settings, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { HealthBadge } from './HealthBadge'
 
 const NAV = [
   { to: '/',         icon: LayoutDashboard, label: 'Pulse' },
-  { to: '/analyze',  icon: Play,            label: 'Analyze' },
+  { to: '/analyze',  icon: BarChart2,        label: 'Analyze' },
   { to: '/activity', icon: Activity,        label: 'Activity' },
   { to: '/settings', icon: Settings,        label: 'Settings' },
 ]
@@ -28,7 +28,7 @@ export function AppShell() {
             >
               <Zap size={13} className="text-white" />
             </div>
-            <span className="font-semibold text-gray-100 text-sm tracking-tight">Omicron</span>
+            <span className="font-semibold text-gray-100 text-sm tracking-tight">PubIQ</span>
           </div>
 
           {/* Desktop nav — hidden on mobile */}

@@ -4,6 +4,7 @@ import type {
   AgentInfo,
   AnalyzePostRequest,
   AnalyzePostResponse,
+  CheckpointsResponse,
   HealthResponse,
   PubIQRequest,
   PubIQResponse,
@@ -11,11 +12,11 @@ import type {
   TikTokVideosResponse,
 } from './types'
 
-// On Android/iOS (file:// origin) relative URLs don't work — point straight at the backend.
-// VITE_API_URL overrides the default to point at a remote host (e.g. https://api.omicron-ailabs.com).
-const isNative = window.location.protocol === 'file:'
+// Capacitor Android/iOS serves from https://localhost — not file:// — so check window.Capacitor.
+// VITE_API_URL overrides the default; native builds fall back to the production API.
+const isNative = typeof (window as unknown as { Capacitor?: unknown }).Capacitor !== 'undefined'
 const REMOTE = import.meta.env.VITE_API_URL as string | undefined
-const BASE = isNative ? 'http://192.168.1.155:8000' : (REMOTE ?? '/api')
+export const BASE = REMOTE ?? (isNative ? 'https://api.omicron-ailabs.com' : '/api')
 
 function getApiKey(): string {
   // Read from localStorage directly to avoid a circular import with store/app.ts
@@ -94,6 +95,12 @@ export const api = {
 
   listCreatorVideos(creatorId: string): Promise<TikTokVideosResponse> {
     return request<TikTokVideosResponse>(`/auth/tiktok/videos/${encodeURIComponent(creatorId)}`)
+  },
+
+  getCreatorCheckpoints(creatorId: string, platform = 'tiktok'): Promise<CheckpointsResponse> {
+    return request<CheckpointsResponse>(
+      `/auth/tiktok/checkpoints/${encodeURIComponent(creatorId)}?platform=${encodeURIComponent(platform)}`
+    )
   },
 
   authorizeTikTok(creatorId: string): string {

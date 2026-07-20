@@ -161,6 +161,30 @@ export interface TikTokVideosResponse {
   videos: TikTokVideo[]
 }
 
+// Matches post_checkpoints DB row returned by GET /auth/tiktok/checkpoints/{creator_id}
+export interface PostCheckpoint {
+  post_id?: string
+  offset_min: number
+  views: number
+  likes: number
+  comments: number
+  shares: number
+  retention_pct: number
+  z_scores: ZScores | null
+  signal: Signal | null
+  fetched_at?: string
+  // Computed by frontend from baseline.views.mean for the velocity chart
+  baseline_views?: number
+}
+
+export interface CheckpointsResponse {
+  creator_id: string
+  platform: string
+  post_id: string | null
+  checkpoints: PostCheckpoint[]
+  baseline: Record<string, { mean: number; std: number; count: number }>
+}
+
 // Frontend-only: creator profile for demo
 export interface CreatorProfile {
   id: string

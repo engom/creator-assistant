@@ -120,15 +120,17 @@ export function FeedPage() {
         </div>
       </motion.section>
 
-      <section className="rounded-[24px] border border-brand-400/20 bg-brand-500/[.08] p-4">
-        <div className="flex gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-500/20 text-brand-200"><Sparkles size={17} /></div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-300">Creator Sidekick says</p>
-            <p className="mt-1 text-sm leading-relaxed text-gray-100">🔥 Views are 3.1× normal. Sentiment is 88% positive. The Champions League reaction is driving the conversation.</p>
+      {pulse.insight && (
+        <section className="rounded-[24px] border border-brand-400/20 bg-brand-500/[.08] p-4">
+          <div className="flex gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-500/20 text-brand-200"><Sparkles size={17} /></div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[.12em] text-brand-300">Creator Sidekick says</p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-100">{pulse.insight}</p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section>
         <div className="mb-3 flex items-center justify-between">

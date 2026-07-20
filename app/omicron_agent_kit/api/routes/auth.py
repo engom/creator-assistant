@@ -23,6 +23,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from omicron_agent_kit.api.auth import require_api_key
 from omicron_agent_kit.config import get_settings
+from omicron_agent_kit.db import baselines as baseline_store
+from omicron_agent_kit.db import checkpoints as checkpoint_store
 from omicron_agent_kit.db import tokens as token_store
 from omicron_agent_kit.platform.tiktok import (
     InMemoryTokenStore,
@@ -268,3 +270,85 @@ async def list_creator_videos(
         ) from exc
 
     return {"creator_id": creator_id, "platform": "tiktok", "videos": videos}
+
+
+@router.get("/checkpoints/{creator_id}", tags=["creators"])
+async def list_creator_checkpoints(
+    creator_id: str,
+    request: Request,
+    platform: str = "tiktok",
+    _: str = Depends(require_api_key),
+) -> dict:
+    """Return all checkpoints for a creator's most recently fetched post, plus their Welford baseline.
+
+    The most recent post is identified by the post_id whose latest checkpoint
+    has the highest fetched_at timestamp. All checkpoint rows for that post are
+    returned sorted by offset_min ASC. The baseline is fetched concurrently.
+
+    Requires Postgres. Returns 503 when the pool is unavailable.
+    """
+    if request.app.state.db_pool is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable — checkpoints not accessible.",
+        )
+
+    pool = request.app.state.db_pool
+
+    # Identify the most recent post by max(fetched_at) of its most recent checkpoint,
+    # then fetch all checkpoints for that post in offset order.
+    # Using a subquery avoids the interleaving problem that a simple ORDER BY
+    # fetched_at has when polling windows from different posts overlap.
+    rows, baseline_data = await asyncio.gather(
+        pool.fetch(
+            """
+            SELECT post_id, offset_min, views, likes, comments, shares,
+                   retention_pct, z_scores, signal, fetched_at
+            FROM post_checkpoints
+            WHERE creator_id = $1
+              AND platform   = $2
+              AND post_id = (
+                  SELECT post_id
+                  FROM post_checkpoints
+                  WHERE creator_id = $1 AND platform = $2
+                  GROUP BY post_id
+                  ORDER BY MAX(fetched_at) DESC
+                  LIMIT 1
+              )
+            ORDER BY offset_min ASC
+            """,
+            creator_id,
+            platform,
+        ),
+        baseline_store.get_baseline(creator_id, platform),
+    )
+
+    post_id: str | None = rows[0]["post_id"] if rows else None
+    checkpoints = [
+        {
+            "post_id": row["post_id"],
+            "offset_min": row["offset_min"],
+            "views": row["views"],
+            "likes": row["likes"],
+            "comments": row["comments"],
+            "shares": row["shares"],
+            "retention_pct": float(row["retention_pct"]),
+            "z_scores": row["z_scores"],  # asyncpg deserialises JSONB → dict | None
+            "signal": row["signal"],
+            "fetched_at": row["fetched_at"].isoformat(),
+        }
+        for row in rows
+    ]
+
+    baseline = {
+        stat: {"mean": bs.mean, "std": bs.std, "count": bs.count}
+        for stat, bs in baseline_data.items()
+    }
+
+    return {
+        "creator_id": creator_id,
+        "platform": platform,
+        "post_id": post_id,
+        "checkpoints": checkpoints,
+        "baseline": baseline,
+    }

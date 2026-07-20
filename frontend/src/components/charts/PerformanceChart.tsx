@@ -4,7 +4,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import type { ZScores } from '@/api/types'
-import { cn, formatNumber, formatNumberCompact } from '@/lib/utils'
+import { cn, formatNumber, formatNumberCompact, formatPercent } from '@/lib/utils'
 
 // ── Radar: z-score profile per stat ──────────────────────────────────────────
 
@@ -104,7 +104,8 @@ export function CheckpointChart({ data, className }: CheckpointChartProps) {
             axisLine={false}
             tickLine={false}
             tickFormatter={formatNumberCompact}
-            width={36}
+            tickCount={3}
+            width={44}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#30363d', strokeWidth: 1 }} />
           <Area
@@ -141,40 +142,32 @@ interface StatBarProps {
   label: string
   current: number
   baseline: number
-  max: number
+  isPct?: boolean
   color?: string
 }
 
-export function StatBar({ label, current, baseline, max, color = '#3b62f6' }: StatBarProps) {
-  const currentPct = Math.min((current / max) * 100, 100)
-  const baselinePct = Math.min((baseline / max) * 100, 100)
+export function StatBar({ label, current, baseline, isPct = false, color = '#3b62f6' }: StatBarProps) {
   const isAbove = current > baseline
+  const delta = baseline > 0 ? ((current - baseline) / baseline) * 100 : null
+  // Bar anchored at baseline = 50%. At-baseline → 50%. 2× baseline → 100%. 0 → 0%.
+  const barPct = baseline > 0 ? Math.min(Math.max((current / baseline) * 50, 0), 100) : 50
+  const valueLabel = isPct ? formatPercent(current, 1) : formatNumber(current)
 
   return (
     <div className="flex items-center gap-3 text-xs">
-      <span className="w-18 text-gray-500 shrink-0">{label}</span>
-      <div className="flex-1 relative h-5 flex items-center">
-        {/* Baseline marker */}
+      <span className="w-12 text-gray-500 shrink-0">{label}</span>
+      <div className="relative flex-1 h-3 rounded-sm bg-white/5 overflow-hidden">
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-white/20 z-10"
-          style={{ left: `${baselinePct}%` }}
-          title={`Baseline: ${baseline.toLocaleString()}`}
+          className="h-full rounded-sm transition-all duration-700"
+          style={{ width: `${barPct}%`, backgroundColor: isAbove ? '#22c55e' : color, opacity: 0.8 }}
         />
-        {/* Current bar */}
-        <div
-          className="h-3 rounded-sm transition-all duration-700"
-          style={{
-            width: `${currentPct}%`,
-            backgroundColor: isAbove ? '#22c55e' : color,
-            opacity: 0.8,
-          }}
-        />
+        <div className="absolute top-0 bottom-0 w-px bg-white/30" style={{ left: '50%' }} />
       </div>
-      <span className={cn(
-        'w-14 text-right tabular-nums font-mono shrink-0',
-        isAbove ? 'text-green-400' : 'text-gray-300'
-      )}>
-        {formatNumber(current)}
+      <span className={cn('w-14 text-right tabular-nums font-mono shrink-0', isAbove ? 'text-green-400' : 'text-gray-300')}>
+        {valueLabel}
+      </span>
+      <span className={cn('w-12 text-right tabular-nums shrink-0 text-[10px]', delta === null ? 'text-gray-600' : isAbove ? 'text-green-500' : 'text-gray-500')}>
+        {delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(0)}%`}
       </span>
     </div>
   )

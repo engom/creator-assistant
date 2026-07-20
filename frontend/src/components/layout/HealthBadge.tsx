@@ -13,7 +13,7 @@ export function HealthBadge() {
         const h = await api.health()
         store.setHealth(h.status, h.lm_error)
       } catch {
-        store.setHealth('degraded', 'API unreachable')
+        store.setHealth('degraded', undefined)
       }
     }
     check()
@@ -35,7 +35,7 @@ export function HealthBadge() {
         title="System healthy"
       >
         <span className="live-dot" style={{ width: 5, height: 5 }} />
-        <span className="hidden sm:inline">Live</span>
+        <span>Live</span>
       </div>
     )
   }
@@ -43,10 +43,10 @@ export function HealthBadge() {
   return (
     <div
       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium bg-amber-500/10 border-amber-500/20 text-amber-400"
-      title={lmError ?? undefined}
+      title={lmError ?? 'API unreachable'}
     >
       <AlertTriangle size={11} />
-      <span className="hidden sm:inline">Degraded</span>
+      <span>Degraded</span>
     </div>
   )
 }

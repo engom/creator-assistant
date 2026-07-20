@@ -55,7 +55,8 @@ export function PushBanner() {
           animate={{ opacity: 1, y: 0, x: '-50%', scale: 1 }}
           exit={{ opacity: 0, y: -36, x: '-50%', scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 520, damping: 42 }}
-          className="fixed left-1/2 top-3 z-[9998] w-[min(390px,calc(100vw-1.5rem))] sm:top-4"
+          className="fixed left-1/2 z-[9998] w-[min(390px,calc(100vw-1.5rem))]"
+          style={{ top: 'calc(3.75rem + env(safe-area-inset-top, 0px) + 8px)' }}
           onClick={() => store.markRead(banner.id)}
           role="status"
           aria-live="polite"
@@ -75,7 +76,7 @@ export function PushBanner() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-[13px] font-semibold leading-none text-gray-100">Omicron</p>
+                    <p className="truncate text-[13px] font-semibold leading-none text-gray-100">PubIQ</p>
                     <span className="text-[11px] leading-none text-gray-500">now</span>
                     <span
                       className={cn(

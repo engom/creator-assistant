@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Zap, CheckCircle, AlertCircle, ChevronDown, RefreshCw, Video, TrendingUp } from 'lucide-react'
-import { api } from '@/api/client'
+import { api, ApiError } from '@/api/client'
 import { store } from '@/store/app'
 import { toast } from '@/components/ui/Toast'
 import { ZScorePanel } from '@/components/ui/ZScoreBar'
 import { ZScoreRadar } from '@/components/charts/PerformanceChart'
 import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
+import { ServerUnreachable } from '@/components/ui/ServerUnreachable'
 import { cn, signalBg, signalLabel, urgencyBg, formatNumber, formatPercent } from '@/lib/utils'
 import type { AnalyzePostResponse, TikTokVideo, TikTokProfile, ForecastStat, HistoricalBaseline } from '@/api/types'
 import { STAT_LABELS } from '@/components/ui/ZScoreBar'
@@ -143,6 +144,17 @@ function ForecastCard({
   )
 }
 
+function StatTile({ label, value, pct }: { label: string; value: number; pct: boolean }) {
+  return (
+    <div className="bg-white/4 rounded-xl p-2.5 flex flex-col gap-1">
+      <p className="text-[10px] font-medium text-gray-500 leading-tight">{label}</p>
+      <p className="text-sm font-bold text-gray-100 tabular-nums leading-tight">
+        {pct ? formatPercent(value, 1) : formatNumber(value)}
+      </p>
+    </div>
+  )
+}
+
 type Step = 'form' | 'running' | 'result'
 
 const AGENT_STEPS = [
@@ -199,21 +211,48 @@ export function AnalyzePage() {
   const [result, setResult] = useState<AnalyzePostResponse | null>(null)
   const [lastStats, setLastStats] = useState<Record<string, number> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [errorKind, setErrorKind] = useState<'network' | 'server' | null>(null)
   const [selectedCreator, setSelectedCreator] = useState(DEMO_CREATORS[0])
   const [showTrace, setShowTrace] = useState(false)
   const [videos, setVideos] = useState<TikTokVideo[]>([])
   const [videosLoading, setVideosLoading] = useState(false)
+  const [videosError, setVideosError] = useState<'unreachable' | 'auth' | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<TikTokVideo | null>(null)
   const [profiles, setProfiles] = useState<Record<string, TikTokProfile>>({})
 
-  // Prefetch profiles for all authorized creators so every row shows live follower counts
   useEffect(() => {
-    DEMO_CREATORS.filter((c) => c.authorized).forEach((c) => {
-      api.getCreatorProfile(c.id).then((prof) => {
-        setProfiles((prev) => ({ ...prev, [c.id]: prof }))
-      }).catch(() => {})
+    let cancelled = false
+    const authorized = DEMO_CREATORS.filter((c) => c.authorized)
+    Promise.all(authorized.map((c) => api.getCreatorProfile(c.id).catch(() => null))).then((results) => {
+      if (cancelled) return
+      const next: Record<string, TikTokProfile> = {}
+      authorized.forEach((c, i) => { if (results[i]) next[c.id] = results[i]! })
+      setProfiles(next)
     })
+    return () => { cancelled = true }
   }, [])
+
+  function classifyVideoError(err: unknown): 'unreachable' | 'auth' {
+    return err instanceof ApiError && err.status === 401 ? 'auth' : 'unreachable'
+  }
+
+  function doFetchVideos(creatorId: string, cancelled: () => boolean) {
+    setVideosLoading(true)
+    setVideosError(null)
+    setVideos([])
+    setSelectedVideo(null)
+    api.listCreatorVideos(creatorId).then((vidRes) => {
+      if (cancelled()) return
+      const vids = vidRes?.videos ?? []
+      setVideos(vids)
+      if (vids.length > 0) setSelectedVideo(vids[0])
+    }).catch((err) => {
+      if (cancelled()) return
+      setVideosError(classifyVideoError(err))
+    }).finally(() => {
+      if (!cancelled()) setVideosLoading(false)
+    })
+  }
 
   useEffect(() => {
     if (!selectedCreator.authorized) {
@@ -221,24 +260,13 @@ export function AnalyzePage() {
       setSelectedVideo(null)
       return
     }
-    let cancelled = false
-    setVideosLoading(true)
-    setVideos([])
-    setSelectedVideo(null)
-    // Reset pipeline state when creator changes
+    let gone = false
     setStep('form')
     setResult(null)
     setError(null)
     setAgentProgress({})
-    api.listCreatorVideos(selectedCreator.id).catch(() => null).then((vidRes) => {
-      if (cancelled) return
-      const vids = vidRes?.videos ?? []
-      setVideos(vids)
-      if (vids.length > 0) setSelectedVideo(vids[0])
-    }).finally(() => {
-      if (!cancelled) setVideosLoading(false)
-    })
-    return () => { cancelled = true }
+    doFetchVideos(selectedCreator.id, () => gone)
+    return () => { gone = true }
   }, [selectedCreator.id])
 
   async function runAnalysis() {
@@ -341,7 +369,9 @@ export function AnalyzePage() {
       cancelled = true
       timers.forEach(clearTimeout)
       const errMsg = err instanceof Error ? err.message : 'Unknown error'
+      const kind = !(err instanceof ApiError) || err.status === 0 ? 'network' : 'server'
       setError(errMsg)
+      setErrorKind(kind)
       setStep('result')
       setAgentProgress((prev) => {
         const next = { ...prev }
@@ -417,10 +447,19 @@ export function AnalyzePage() {
             </p>
             {videosLoading && <Spinner size="sm" />}
           </div>
-          {!videosLoading && videos.length === 0 && (
-            <p className="text-xs text-gray-500">
-              No videos found. Token may be missing — complete OAuth in Settings.
+          {!videosLoading && videosError === 'unreachable' && (
+            <ServerUnreachable
+              message="Could not load videos — check that the backend is running."
+              onRetry={() => doFetchVideos(selectedCreator.id, () => false)}
+            />
+          )}
+          {!videosLoading && videosError === 'auth' && (
+            <p className="text-xs text-amber-400">
+              TikTok token missing or expired — complete OAuth in Settings.
             </p>
+          )}
+          {!videosLoading && !videosError && videos.length === 0 && (
+            <p className="text-xs text-gray-500">No videos found for this creator.</p>
           )}
           {videos.length > 0 && (
             <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
@@ -469,23 +508,17 @@ export function AnalyzePage() {
           const src = selectedVideo
             ? { views: selectedVideo.view_count, likes: selectedVideo.like_count, comments: selectedVideo.comment_count, shares: selectedVideo.share_count, retention_pct: selectedVideo.retention_pct }
             : DEMO_ANALYZE_REQUEST.current_stats
-          const stats = {
-            views:    { value: src.views,         pct: false },
-            likes:    { value: src.likes,         pct: false },
-            comments: { value: src.comments,      pct: false },
-            shares:   { value: src.shares,        pct: false },
-            'ret. %': { value: src.retention_pct, pct: true  },
-          }
           return (
-            <div className="grid grid-cols-5 gap-1.5">
-              {Object.entries(stats).map(([label, { value, pct }]) => (
-                <div key={label} className="bg-white/4 rounded-xl p-2 text-center flex flex-col gap-1">
-                  <p className="text-[10px] font-medium text-gray-500 capitalize leading-tight">{label}</p>
-                  <p className="text-sm font-bold text-gray-100 tabular-nums leading-tight">
-                    {pct ? `${value.toFixed(1)}%` : formatNumber(value)}
-                  </p>
-                </div>
-              ))}
+            <div className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                <StatTile label="Views"   value={src.views} pct={false} />
+                <StatTile label="Likes"   value={src.likes} pct={false} />
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <StatTile label="Comments" value={src.comments}      pct={false} />
+                <StatTile label="Shares"   value={src.shares}        pct={false} />
+                <StatTile label="Ret. %"   value={src.retention_pct} pct={true}  />
+              </div>
             </div>
           )
         })()}
@@ -496,12 +529,12 @@ export function AnalyzePage() {
         )}
       </div>
 
-      {/* Spacer so content isn't hidden behind the fixed Run button */}
-      {step === 'form' && <div className="h-20" />}
-
-      {/* Run button — fixed above bottom nav, always visible */}
+      {/* Run button — sticky above bottom nav so it never overlaps content */}
       {step === 'form' && (
-        <div className="fixed inset-x-4 z-40" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div
+          className="sticky z-40 px-0"
+          style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button
             onClick={runAnalysis}
             className="btn-primary w-full flex min-h-14 items-center justify-center gap-2 text-base shadow-2xl focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]"
@@ -631,11 +664,13 @@ export function AnalyzePage() {
         >
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle size={16} className="text-red-400" />
-            <p className="text-sm font-medium text-red-300">Pipeline failed</p>
+            <p className="text-sm font-medium text-red-300">
+              {errorKind === 'network' ? 'Server unreachable' : 'Pipeline failed'}
+            </p>
           </div>
           <p className="text-xs text-red-400/80 font-mono">{error}</p>
           <button
-            onClick={() => { setStep('form'); setError(null); setAgentProgress({}) }}
+            onClick={() => { setStep('form'); setError(null); setErrorKind(null); setAgentProgress({}) }}
             className="btn-ghost mt-3 min-h-11 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
           >
             Try again
