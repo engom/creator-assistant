@@ -20,7 +20,7 @@ export const BASE = REMOTE ?? (isNative ? 'https://api.omicron-ailabs.com' : '/a
 
 function getApiKey(): string {
   // Read from localStorage directly to avoid a circular import with store/app.ts
-  return localStorage.getItem('omicron_api_key') ?? ''
+  return localStorage.getItem('omicron_api_key') ?? 'test-key'
 }
 
 async function request<T>(
