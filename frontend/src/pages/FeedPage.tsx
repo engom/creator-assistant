@@ -1,10 +1,47 @@
 import { motion } from 'framer-motion'
-import { ArrowUpRight, Check, ChevronRight, Flame, MessageCircle, Play, Send, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronRight, Flame, MessageCircle, Play, Send, Sparkles, Timer } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { store, useAppStore } from '@/store/app'
-import { cn, formatNumber, timeAgo } from '@/lib/utils'
+import { cn, timeAgo } from '@/lib/utils'
 import type { Notification } from '@/api/types'
+
+const CRITICAL_WINDOW_MS = 15 * 60 * 1000
+
+function useCountdown(receivedAt: string | null): string | null {
+  const [remaining, setRemaining] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!receivedAt) return
+    let id: ReturnType<typeof setInterval>
+    const tick = () => {
+      const left = CRITICAL_WINDOW_MS - (Date.now() - new Date(receivedAt).getTime())
+      if (left <= 0) {
+        clearInterval(id)
+        setRemaining(0)
+      } else {
+        setRemaining(left)
+      }
+    }
+    tick()
+    id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [receivedAt])
+
+  if (remaining === null || remaining <= 0) return null
+  const mins = Math.floor(remaining / 60000)
+  const secs = Math.floor((remaining % 60000) / 1000)
+  return `${mins}:${String(secs).padStart(2, '0')}`
+}
+
+function baselineMultiplier(notification: Notification): string | null {
+  const z = Object.values(notification.z_scores).filter((v): v is number => typeof v === 'number')
+  if (z.length === 0) return null
+  const best = Math.max(...z)
+  if (best < 0.5) return null
+  const x = (1 + best * 0.6).toFixed(1)
+  return `${x}×`
+}
 
 function velocityFor(notification: Notification): number | null {
   const nums = Object.values(notification.z_scores).filter((value): value is number => typeof value === 'number')
@@ -52,9 +89,11 @@ export function FeedPage() {
   const creators = useAppStore((state) => state.creators)
   const [activeCreator, setActiveCreator] = useState<string | null>(null)
   const navigate = useNavigate()
-
   const available = notifications.filter((item) => activeCreator === null || item.creator_id === activeCreator)
   const pulse = available.find((item) => item.signal === 'above_baseline') ?? available[0]
+  const countdown = useCountdown(pulse?.received_at ?? null)
+  const pulseMultiplier = pulse ? baselineMultiplier(pulse) : null
+
   const pending = available.filter((item) => item.recommended_action && !item.approved)
   const unread = available.filter((item) => !item.read).length
   const greeting = useMemo(() => {
@@ -104,25 +143,33 @@ export function FeedPage() {
       <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[28px] border border-orange-400/20 bg-[radial-gradient(circle_at_20%_0%,rgba(249,115,22,.17),transparent_39%),linear-gradient(135deg,#17131b,#10131e_70%)] p-5 shadow-[0_18px_55px_rgba(0,0,0,.28)]">
         <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-orange-400/10 blur-3xl" />
         <div className="relative flex items-center justify-between gap-2">
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[.14em] text-orange-300"><Flame size={13} /> Trending now</p>
-            <h2 className="mt-2 max-w-44 text-xl font-semibold leading-tight text-gray-100">{pulse.signal === 'below_baseline' ? 'The hook is losing viewers.' : 'This post is catching fire.'}</h2>
-            <p className="mt-2 text-xs text-gray-500">{timeAgo(pulse.received_at)} · TikTok</p>
+            <h2 className="mt-2 text-xl font-semibold leading-tight text-gray-100">{pulse.signal === 'below_baseline' ? 'The hook is losing viewers.' : 'This post is catching fire.'}</h2>
+            {pulseMultiplier && (
+              <p className="mt-1.5 text-sm font-semibold text-orange-300 tabular-nums">
+                {pulseMultiplier} your baseline
+              </p>
+            )}
+            <p className="mt-1.5 text-xs text-gray-500">{timeAgo(pulse.received_at)} · TikTok</p>
           </div>
           <VelocityRing notification={pulse} />
         </div>
-        <div className="relative mt-2 grid grid-cols-3 gap-2 border-t border-white/[.07] pt-4">
-          {[
-            ['Views', formatNumber(pulse.current_stats.views)],
-            ['Engagement', pulse.current_stats.views > 0 ? `${((pulse.current_stats.likes + pulse.current_stats.comments + pulse.current_stats.shares) / pulse.current_stats.views * 100).toFixed(1)}%` : '—'],
-            ['Retention', `${pulse.current_stats.retention_pct.toFixed(0)}%`],
-          ].map(([label, value]) => (
-            <div key={label} className="flex flex-col items-center gap-1 rounded-2xl bg-white/[.045] px-2 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-gray-600">{label}</p>
-              <p className="font-mono text-sm font-bold text-gray-100 tabular-nums">{value}</p>
-            </div>
-          ))}
-        </div>
+
+        {countdown && (
+          <div className="relative mt-3 flex items-center gap-2 rounded-2xl border border-orange-400/25 bg-orange-400/[.07] px-3 py-2">
+            <Timer size={13} className="text-orange-400 shrink-0" />
+            <p className="text-xs font-semibold text-orange-300">Critical window</p>
+            <p className="ml-auto font-mono text-sm font-bold text-orange-200 tabular-nums">{countdown}</p>
+          </div>
+        )}
+
+        {pulse.recommended_action && (
+          <div className="relative mt-3 rounded-2xl border border-white/[.06] bg-white/[.04] px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-gray-500 mb-1">Recommended action</p>
+            <p className="text-sm leading-snug text-gray-100">{pulse.recommended_action}</p>
+          </div>
+        )}
       </motion.section>
 
       {pulse.insight && (

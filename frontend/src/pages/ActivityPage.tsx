@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { Activity, RefreshCw, Server, Cpu, Clock } from 'lucide-react'
 import { useAppStore } from '@/store/app'
 import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { CheckpointChart, StatBar } from '@/components/charts/PerformanceChart'
-import { cn, timeAgo, formatNumber, formatPercent, urgencyBg, signalBg, signalLabel } from '@/lib/utils'
+import { cn, formatNumber, formatPercent } from '@/lib/utils'
 import { api, ApiError } from '@/api/client'
 import { DEMO_CREATORS } from '@/data/demo'
 import type { PostCheckpoint, CheckpointsResponse } from '@/api/types'
@@ -19,6 +18,7 @@ export function ActivityPage() {
   const [checkpointData, setCheckpointData] = useState<CheckpointsResponse | null>(null)
   const [checkpointsLoading, setCheckpointsLoading] = useState(false)
   const [checkpointsError, setCheckpointsError] = useState<'unreachable' | 'db' | null>(null)
+  const [retryCursor, setRetryCursor] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -45,7 +45,7 @@ export function ActivityPage() {
       if (!cancelled) setCheckpointsLoading(false)
     })
     return () => { cancelled = true }
-  }, [activeId])
+  }, [activeId, retryCursor])
 
   const checkpoints = checkpointData?.checkpoints ?? []
   const latestPost = checkpoints[checkpoints.length - 1] ?? null
@@ -53,7 +53,7 @@ export function ActivityPage() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-100">Activity</h1>
+        <h1 className="text-xl font-semibold text-gray-100">Alerts</h1>
         <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-lg">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
           Live monitoring
@@ -81,44 +81,55 @@ export function ActivityPage() {
         ))}
       </div>
 
-      <div className="card p-5">
-        <div className="flex items-start justify-between mb-5">
-          <div>
+      <div className="card p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+            {creator.handle.slice(1, 3).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
             <h2 className="text-base font-semibold text-gray-100">{creator.handle}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">{formatNumber(creator.followers)} followers · TikTok</p>
+            <p className="text-xs text-gray-500">{formatNumber(creator.followers)} followers · TikTok</p>
           </div>
           <Badge variant={creator.authorized ? 'success' : 'warning'}>
             {creator.authorized ? 'Authorized' : 'Needs auth'}
           </Badge>
         </div>
 
-        <div className="border-t border-white/5 pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
-              Historical avg
-            </p>
-            <p className="text-[10px] text-gray-600">{creator.baseline.sample_size} posts sampled</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Views',   value: creator.baseline.avg_views,          std: creator.baseline.std_views,          isPct: false },
-              { label: 'Likes',   value: creator.baseline.avg_likes,          std: creator.baseline.std_likes,          isPct: false },
-              { label: 'Shares',  value: creator.baseline.avg_shares,         std: creator.baseline.std_shares,         isPct: false },
-              { label: 'Ret. %',  value: creator.baseline.avg_retention_pct,  std: creator.baseline.std_retention_pct,  isPct: true  },
-            ].map(({ label, value, std, isPct }) => (
-              <div key={label} className="bg-white/4 rounded-xl p-3 flex flex-col items-center gap-1 text-center">
-                <p className="text-[10px] text-gray-600 uppercase tracking-wide">{label}</p>
-                <p className="text-sm font-semibold text-gray-200 tabular-nums">
-                  {isPct ? formatPercent(value) : formatNumber(value)}
-                </p>
-                <p className="text-[10px] text-gray-600 tabular-nums">
-                  ±{isPct ? formatPercent(std) : formatNumber(std)}
-                </p>
-              </div>
-            ))}
-          </div>
+        <div className="flex gap-2 border-t border-white/5 pt-4">
+          {[
+            { label: 'Avg views', value: formatNumber(creator.baseline.avg_views) },
+            { label: 'Avg retention', value: formatPercent(creator.baseline.avg_retention_pct) },
+            { label: 'Sampled', value: `${creator.baseline.sample_size} posts` },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex-1 flex flex-col gap-0.5 text-center">
+              <p className="text-[10px] text-gray-600 uppercase tracking-wide">{label}</p>
+              <p className="text-sm font-semibold text-gray-200 tabular-nums">{value}</p>
+            </div>
+          ))}
         </div>
       </div>
+
+      {creatorNotifs.length > 0 && (
+        <div className="card p-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-3">AI Observations</p>
+          <div className="flex flex-col gap-2">
+            {creatorNotifs.slice(0, 3).map((n) => {
+              const isPositive = n.signal === 'above_baseline'
+              return (
+                <div key={n.id} className={cn(
+                  'flex items-start gap-2.5 rounded-xl px-3 py-2.5 border',
+                  isPositive ? 'bg-green-500/[.06] border-green-500/20' : 'bg-amber-500/[.06] border-amber-500/20',
+                )}>
+                  <span className={cn('mt-0.5 text-sm shrink-0', isPositive ? 'text-green-400' : 'text-amber-400')}>
+                    {isPositive ? '✓' : '⚠'}
+                  </span>
+                  <p className="text-xs text-gray-300 leading-relaxed">{n.insight}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {checkpointsLoading ? (
         <div className="card p-8 flex items-center justify-center gap-3">
@@ -132,7 +143,7 @@ export function ActivityPage() {
             {checkpointsError === 'db' ? 'Database unavailable.' : 'Could not reach the server.'}
           </p>
           <button
-            onClick={() => setActiveId((id) => id)}
+            onClick={() => setRetryCursor((n) => n + 1)}
             className="mt-3 inline-flex min-h-11 items-center rounded-xl px-3 text-xs text-brand-400 transition hover:bg-brand-500/10 focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.98]"
           >
             Retry
@@ -191,33 +202,6 @@ export function ActivityPage() {
         </div>
       )}
 
-      {/* Recent alerts for creator */}
-      {creatorNotifs.length > 0 && (
-        <div className="card p-5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Recent alerts
-          </p>
-          <div className="flex flex-col gap-2">
-            {creatorNotifs.slice(0, 5).map((n) => (
-              <motion.div
-                key={n.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-start gap-3 p-3 bg-white/3 rounded-xl border border-white/5"
-              >
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={cn('badge border text-xs', urgencyBg(n.urgency))}>{n.urgency}</span>
-                    <span className={cn('badge border text-xs', signalBg(n.signal))}>{signalLabel(n.signal)}</span>
-                    <span className="ml-auto text-xs text-gray-600">{timeAgo(n.received_at)}</span>
-                  </div>
-                  <p className="text-xs text-gray-300 leading-relaxed">{n.insight}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Agent status */}
       <div className="card p-5">

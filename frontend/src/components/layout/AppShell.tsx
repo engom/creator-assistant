@@ -6,8 +6,8 @@ import { HealthBadge } from './HealthBadge'
 
 const NAV = [
   { to: '/',         icon: LayoutDashboard, label: 'Pulse' },
-  { to: '/analyze',  icon: BarChart2,        label: 'Analyze' },
-  { to: '/activity', icon: Activity,        label: 'Activity' },
+  { to: '/analyze',  icon: BarChart2,        label: 'Insights' },
+  { to: '/activity', icon: Activity,        label: 'Alerts' },
   { to: '/settings', icon: Settings,        label: 'Settings' },
 ]
 

@@ -158,10 +158,10 @@ function StatTile({ label, value, pct }: { label: string; value: number; pct: bo
 type Step = 'form' | 'running' | 'result'
 
 const AGENT_STEPS = [
-  { id: 'monitoring-agent',    label: 'Monitoring Agent',   desc: 'Detecting post, scheduling polls' },
-  { id: 'analytics-agent',     label: 'Analytics Agent',    desc: 'Computing z-scores vs baseline' },
-  { id: 'insight-agent',       label: 'Insight Agent',      desc: 'Generating grounded insight (AI)' },
-  { id: 'notification-agent',  label: 'Notification Agent', desc: 'Routing alert by urgency' },
+  { id: 'monitoring-agent',    label: 'Reading post',       desc: 'Fetching latest stats from TikTok' },
+  { id: 'analytics-agent',     label: 'Comparing baseline', desc: 'Measuring against your recent history' },
+  { id: 'insight-agent',       label: 'Writing insight',    desc: 'AI interpreting what the numbers mean' },
+  { id: 'notification-agent',  label: 'Sending alert',      desc: 'Dispatching to your notification channels' },
 ]
 
 function AgentStepRow({
@@ -387,9 +387,9 @@ export function AnalyzePage() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-2xl mx-auto">
       <div>
-        <h1 className="text-xl font-semibold text-gray-100">Analyze Post</h1>
+        <h1 className="text-xl font-semibold text-gray-100">Generate Insights</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Run the full 4-agent pipeline: monitor → analyze → insight → notify.
+          Select a post and get AI-powered performance analysis in seconds.
         </p>
       </div>
 
@@ -540,7 +540,7 @@ export function AnalyzePage() {
             className="btn-primary w-full flex min-h-14 items-center justify-center gap-2 text-base shadow-2xl focus:outline-none focus:ring-2 focus:ring-brand-400/30 active:scale-[0.99]"
           >
             <Play size={18} />
-            Run pipeline
+            Analyze post
           </button>
         </div>
       )}
@@ -554,7 +554,7 @@ export function AnalyzePage() {
             className="flex flex-col gap-2"
           >
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Pipeline execution
+              Analyzing
             </p>
             {AGENT_STEPS.map((s) => (
               <AgentStepRow

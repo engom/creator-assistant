@@ -33,7 +33,26 @@ export const DEMO_CREATORS: CreatorProfile[] = [
   },
 ]
 
-export const DEMO_NOTIFICATIONS: Notification[] = []
+export const DEMO_NOTIFICATIONS: Notification[] = [
+  {
+    id: 'demo-notif-1',
+    creator_id: 'eurafricanews',
+    post_id: 'vid_demo_fire',
+    post_title: '#pourtoi #fuyp — trending video',
+    platform: 'tiktok',
+    urgency: 'high',
+    signal: 'above_baseline',
+    insight: 'Retention and shares are both well above your rolling average. The first 3 seconds are driving an unusually long watch time — viewers are completing the video.',
+    recommended_action: 'Repost to Instagram Reels within the next 20 minutes to capture the same momentum.',
+    z_scores: { views: 2.6, likes: 2.1, comments: 1.4, shares: 3.1, retention_pct: 2.4 },
+    current_stats: { views: 55300, likes: 4800, comments: 620, shares: 870, retention_pct: 49 },
+    notification_dispatched: true,
+    trace_ids: {},
+    total_latency_ms: 1240,
+    received_at: new Date(Date.now() - 7 * 60 * 1000).toISOString(),
+    read: false,
+  },
+]
 
 export const DEMO_ANALYZE_REQUEST = {
   creator_id: 'elpanthio',

@@ -13,7 +13,9 @@ export function PushBanner() {
   const notifications = useAppStore((s) => s.notifications)
   const [banner, setBanner] = useState<Notification | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const seenIdsRef = useRef(new Set<string>())
+  // Pre-seed with all notifications present at mount so only alerts that arrive
+  // during this session fire as push banners — prevents cold-load spam.
+  const seenIdsRef = useRef(new Set<string>(notifications.map((n) => n.id)))
 
   useEffect(() => {
     const current = notifications.filter((n) => !n.read && n.urgency !== 'low')

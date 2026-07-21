@@ -288,10 +288,13 @@ async def list_creator_checkpoints(
     Requires Postgres. Returns 503 when the pool is unavailable.
     """
     if request.app.state.db_pool is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database unavailable — checkpoints not accessible.",
-        )
+        return {
+            "creator_id": creator_id,
+            "platform": platform,
+            "post_id": None,
+            "checkpoints": [],
+            "baseline": {},
+        }
 
     pool = request.app.state.db_pool
 
